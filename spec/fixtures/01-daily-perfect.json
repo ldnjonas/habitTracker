@@ -1,0 +1,58 @@
+{
+  "name": "daily: sechs Tage am Stück, heute inklusive",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-30",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-30",
+        "schedule": {
+          "kind": "daily"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-30",
+      "value": 1
+    },
+    {
+      "date": "2026-08-31",
+      "value": 1
+    },
+    {
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "date": "2026-09-04",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 6,
+    "longestStreak": 6,
+    "completedCount": 6,
+    "evaluatedCount": 6,
+    "completionRate": 1.0,
+    "days": {
+      "2026-08-30": "completed",
+      "2026-09-04": "completed"
+    }
+  }
+}

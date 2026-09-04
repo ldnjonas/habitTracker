@@ -1,0 +1,62 @@
+{
+  "name": "Jahresgrenze: der Streak läuft über den 31.12. hinweg",
+  "today": "2026-01-03",
+  "range": {
+    "from": "2025-12-28",
+    "to": "2026-01-03"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2025-12-28",
+        "schedule": {
+          "kind": "daily"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2025-12-28",
+      "value": 1
+    },
+    {
+      "date": "2025-12-29",
+      "value": 1
+    },
+    {
+      "date": "2025-12-30",
+      "value": 1
+    },
+    {
+      "date": "2025-12-31",
+      "value": 1
+    },
+    {
+      "date": "2026-01-01",
+      "value": 1
+    },
+    {
+      "date": "2026-01-02",
+      "value": 1
+    },
+    {
+      "date": "2026-01-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 7,
+    "longestStreak": 7,
+    "completedCount": 7,
+    "evaluatedCount": 7,
+    "completionRate": 1.0,
+    "days": {
+      "2025-12-31": "completed",
+      "2026-01-01": "completed"
+    }
+  }
+}

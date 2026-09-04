@@ -1,0 +1,60 @@
+{
+  "name": "quantity atMost 30 min: ohne Eintrag ist das Limit eingehalten",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-30",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "quantity",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-30",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atMost"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-30",
+      "value": 20
+    },
+    {
+      "date": "2026-08-31",
+      "value": 45
+    },
+    {
+      "date": "2026-09-01",
+      "value": 10
+    },
+    {
+      "date": "2026-09-02",
+      "value": 30
+    },
+    {
+      "date": "2026-09-03",
+      "value": 0
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 4,
+    "longestStreak": 4,
+    "completedCount": 5,
+    "evaluatedCount": 6,
+    "completionRate": 0.8333333333,
+    "days": {
+      "2026-08-31": "missed",
+      "2026-09-02": "completed",
+      "2026-09-04": "completed"
+    }
+  }
+}

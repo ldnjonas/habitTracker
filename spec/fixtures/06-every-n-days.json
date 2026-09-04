@@ -1,0 +1,46 @@
+{
+  "name": "everyNDays 3: nur Ankertage sind geplant",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-31",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-31",
+        "schedule": {
+          "kind": "everyNDays",
+          "n": 3,
+          "anchor": "2026-08-31"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-31",
+      "value": 1
+    },
+    {
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 2,
+    "longestStreak": 2,
+    "completedCount": 2,
+    "evaluatedCount": 2,
+    "completionRate": 1.0,
+    "days": {
+      "2026-08-31": "completed",
+      "2026-09-01": "notScheduled",
+      "2026-09-03": "completed",
+      "2026-09-04": "notScheduled"
+    }
+  }
+}

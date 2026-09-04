@@ -1,0 +1,103 @@
+{
+  "name": "Trend: 4 von 14 nach 14 von 14 ist ein Absturz",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-07",
+    "to": "2026-09-03"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-07",
+      "value": 1
+    },
+    {
+      "date": "2026-08-08",
+      "value": 1
+    },
+    {
+      "date": "2026-08-09",
+      "value": 1
+    },
+    {
+      "date": "2026-08-10",
+      "value": 1
+    },
+    {
+      "date": "2026-08-11",
+      "value": 1
+    },
+    {
+      "date": "2026-08-12",
+      "value": 1
+    },
+    {
+      "date": "2026-08-13",
+      "value": 1
+    },
+    {
+      "date": "2026-08-14",
+      "value": 1
+    },
+    {
+      "date": "2026-08-15",
+      "value": 1
+    },
+    {
+      "date": "2026-08-16",
+      "value": 1
+    },
+    {
+      "date": "2026-08-17",
+      "value": 1
+    },
+    {
+      "date": "2026-08-18",
+      "value": 1
+    },
+    {
+      "date": "2026-08-19",
+      "value": 1
+    },
+    {
+      "date": "2026-08-20",
+      "value": 1
+    },
+    {
+      "date": "2026-08-21",
+      "value": 1
+    },
+    {
+      "date": "2026-08-22",
+      "value": 1
+    },
+    {
+      "date": "2026-08-23",
+      "value": 1
+    },
+    {
+      "date": "2026-08-24",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 0,
+    "longestStreak": 18,
+    "completedCount": 18,
+    "evaluatedCount": 28,
+    "completionRate": 0.6428571429,
+    "trend": "declining"
+  }
+}

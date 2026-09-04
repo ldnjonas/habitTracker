@@ -1,0 +1,75 @@
+{
+  "name": "Regelwechsel: vergangene Tage werden mit dem damals gültigen Ziel bewertet",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-30",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "quantity",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-30",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 2.0,
+          "unit": "L",
+          "comparison": "atLeast"
+        }
+      },
+      {
+        "effectiveFrom": "2026-09-02",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 3.0,
+          "unit": "L",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-30",
+      "value": 2.0
+    },
+    {
+      "date": "2026-08-31",
+      "value": 2.0
+    },
+    {
+      "date": "2026-09-01",
+      "value": 2.0
+    },
+    {
+      "date": "2026-09-02",
+      "value": 2.0
+    },
+    {
+      "date": "2026-09-03",
+      "value": 3.0
+    },
+    {
+      "date": "2026-09-04",
+      "value": 3.0
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 2,
+    "longestStreak": 3,
+    "completedCount": 5,
+    "evaluatedCount": 6,
+    "completionRate": 0.8333333333,
+    "days": {
+      "2026-09-01": "completed",
+      "2026-09-02": "missed",
+      "2026-09-03": "completed"
+    }
+  }
+}

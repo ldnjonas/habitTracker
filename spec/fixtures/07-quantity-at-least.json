@@ -1,0 +1,63 @@
+{
+  "name": "quantity atLeast 2 L: knapp verfehlt ist verfehlt",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-30",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "quantity",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-30",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 2.0,
+          "unit": "L",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-30",
+      "value": 2.0
+    },
+    {
+      "date": "2026-08-31",
+      "value": 2.5
+    },
+    {
+      "date": "2026-09-01",
+      "value": 1.5
+    },
+    {
+      "date": "2026-09-02",
+      "value": 2.0
+    },
+    {
+      "date": "2026-09-03",
+      "value": 3.0
+    },
+    {
+      "date": "2026-09-04",
+      "value": 1.0
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 2,
+    "longestStreak": 2,
+    "completedCount": 4,
+    "evaluatedCount": 5,
+    "completionRate": 0.8,
+    "days": {
+      "2026-09-01": "missed",
+      "2026-09-04": "partial"
+    }
+  }
+}

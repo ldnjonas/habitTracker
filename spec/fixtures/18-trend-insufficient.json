@@ -1,0 +1,39 @@
+{
+  "name": "Trend: bei zu dünner Datenbasis lieber keine Aussage",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-09-01",
+        "schedule": {
+          "kind": "daily"
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "date": "2026-09-02",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 0,
+    "longestStreak": 2,
+    "completedCount": 2,
+    "evaluatedCount": 3,
+    "completionRate": 0.6666666667,
+    "trend": null
+  }
+}

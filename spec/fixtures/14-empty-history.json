@@ -1,0 +1,32 @@
+{
+  "name": "leerer Verlauf: keine Quote statt einer erfundenen Null",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-04",
+    "to": "2026-09-04"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-09-04",
+        "schedule": {
+          "kind": "daily"
+        }
+      }
+    ]
+  },
+  "entries": [],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "days",
+    "currentStreak": 0,
+    "longestStreak": 0,
+    "completedCount": 0,
+    "evaluatedCount": 0,
+    "completionRate": null,
+    "days": {
+      "2026-09-04": "partial"
+    }
+  }
+}

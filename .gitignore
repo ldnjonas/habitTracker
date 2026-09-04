@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+
+# Datenbanken aus lokalen Läufen
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

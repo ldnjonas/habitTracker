@@ -1,0 +1,80 @@
+{
+  "name": "timesPerWeek 3x: die laufende Woche bricht den Streak nicht, solange erreichbar",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-10",
+    "to": "2026-09-06"
+  },
+  "habit": {
+    "kind": "binary",
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-03",
+        "schedule": {
+          "kind": "timesPerWeek",
+          "n": 3
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "date": "2026-08-10",
+      "value": 1
+    },
+    {
+      "date": "2026-08-12",
+      "value": 1
+    },
+    {
+      "date": "2026-08-14",
+      "value": 1
+    },
+    {
+      "date": "2026-08-17",
+      "value": 1
+    },
+    {
+      "date": "2026-08-19",
+      "value": 1
+    },
+    {
+      "date": "2026-08-21",
+      "value": 1
+    },
+    {
+      "date": "2026-08-24",
+      "value": 1
+    },
+    {
+      "date": "2026-08-26",
+      "value": 1
+    },
+    {
+      "date": "2026-08-28",
+      "value": 1
+    },
+    {
+      "date": "2026-08-31",
+      "value": 1
+    },
+    {
+      "date": "2026-09-02",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "streakUnit": "weeks",
+    "currentStreak": 3,
+    "longestStreak": 3,
+    "completedCount": 3,
+    "evaluatedCount": 3,
+    "completionRate": 1.0,
+    "days": {
+      "2026-08-11": "notScheduled",
+      "2026-08-12": "completed",
+      "2026-09-05": "future"
+    }
+  }
+}
