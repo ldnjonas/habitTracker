@@ -1,0 +1,1060 @@
+openapi: 3.1.0
+info:
+  title: Habit Tracker API
+  version: 0.1.0
+  description: |
+    Vertrag zwischen Mac-App, iPhone-App und WebApp.
+
+    **Drei Entwurfsentscheidungen, die sich durch alles ziehen:**
+
+    1. Einträge, Tages-Journale und Regeln werden über einen *natürlichen*
+       Schlüssel adressiert — `(habitId, date)` statt einer ID. Dadurch ist
+       jedes Schreiben ein idempotenter Upsert: ein wiederholter Request ist
+       harmlos, und zwei Geräte, die denselben Tag abhaken, meinen dasselbe.
+    2. `date` ist ein lokaler Kalendertag (`YYYY-MM-DD`), nie ein Zeitstempel.
+       „Habe ich heute Sport gemacht" ist eine Kalenderfrage; Zeitstempel
+       führen bei Zeitzonen und Sommerzeit zu falschen Streaks.
+    3. Gelöscht wird nur per Grabstein (`deletedAt`). Eine Löschung ohne
+       Grabstein ist beim Sync unsichtbar und käme auf anderen Geräten nie an.
+
+    Mac und iPhone arbeiten offline-first gegen eine lokale SQLite-Datenbank
+    und gleichen über `/sync` ab. Die WebApp nutzt die REST-Ressourcen direkt.
+
+    Die Auswertungssemantik (Streaks, Ausnahmen, Trend) ist nicht Teil dieser
+    Datei, sondern liegt ausführbar in `spec/fixtures/` — beide
+    Implementierungen, Swift und TypeScript, laufen gegen dieselben Fixtures.
+
+servers:
+  - url: http://localhost:8080
+    description: Lokale Entwicklung
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: In v1 nur ein statisches Token. Die Endpunkte sind dokumentiert,
+      damit die Clients schon dafür gebaut sind.
+  - name: habits
+  - name: entries
+  - name: journal
+  - name: insights
+  - name: sync
+
+paths:
+  # ─────────────────────────────── auth ───────────────────────────────
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Konto anlegen (noch nicht implementiert)
+      description: |
+        In v1 nicht aktiv. Der Server kennt genau einen Nutzer und
+        authentifiziert über ein statisches Bearer-Token aus einer
+        Umgebungsvariable. `user_id` steckt trotzdem in jeder Zeile, damit
+        der spätere Login ohne Datenmigration auskommt.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 12 }
+      responses:
+        "201": { description: Angelegt }
+        "501": { description: In dieser Version nicht verfügbar }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Anmelden (noch nicht implementiert)
+      security: []
+      responses:
+        "200":
+          description: Tokenpaar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+        "501": { description: In dieser Version nicht verfügbar }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Access-Token erneuern (noch nicht implementiert)
+      security: []
+      responses:
+        "501": { description: In dieser Version nicht verfügbar }
+
+  # ────────────────────────────── habits ──────────────────────────────
+  /habits:
+    get:
+      tags: [habits]
+      summary: Habits auflisten
+      parameters:
+        - name: includeArchived
+          in: query
+          schema: { type: boolean, default: false }
+          description: Archivierte Habits verschwinden aus „Heute", bleiben aber
+            im Verlauf — daher separat abrufbar.
+        - name: tag
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Habit" }
+    post:
+      tags: [habits]
+      summary: Habit anlegen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HabitDraft" }
+      responses:
+        "201":
+          description: Angelegt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+
+  /habits/{habitId}:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+    get:
+      tags: [habits]
+      summary: Einzelnen Habit lesen
+      responses:
+        "200":
+          description: Habit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [habits]
+      summary: Habit ändern
+      description: |
+        Ändert **nicht** Zeitplan oder Ziel — die sind versioniert und laufen
+        über `/habits/{habitId}/rules/{effectiveFrom}`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HabitPatch" }
+      responses:
+        "200":
+          description: Geändert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+    delete:
+      tags: [habits]
+      summary: Habit löschen (Soft-Delete)
+      description: Setzt `deletedAt`. Der Papierkorb zeigt die letzten 30 Tage.
+      responses:
+        "204": { description: Gelöscht }
+
+  /habits/{habitId}/rules/{effectiveFrom}:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - name: effectiveFrom
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/CalendarDate" }
+    put:
+      tags: [habits]
+      summary: Zeitplan und Ziel ab einem Datum setzen (Upsert)
+      description: |
+        Vergangene Tage werden mit der damals gültigen Regel bewertet. Deshalb
+        muss die UI unterscheiden zwischen „ab heute ändern" (neue Regel mit
+        `effectiveFrom = heute`) und „rückwirkend korrigieren" (bestehende Regel
+        überschreiben). Ohne diese Unterscheidung legt jeder Tippfehler eine
+        Version an und der Verlauf wird zum Flickenteppich.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HabitRule" }
+      responses:
+        "200":
+          description: Habit mit aktualisierter Regelliste
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+    delete:
+      tags: [habits]
+      summary: Regelversion entfernen
+      responses:
+        "200":
+          description: Habit mit aktualisierter Regelliste
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+
+  /habits/{habitId}/tags:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+    put:
+      tags: [habits]
+      summary: Tag-Menge eines Habits vollständig setzen
+      description: Ersetzt die Zuordnung, statt einzeln zu addieren — das macht
+        den Aufruf idempotent und sync-tauglich.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Habit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Habit" }
+
+  /tags:
+    get:
+      tags: [habits]
+      summary: Tags auflisten
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tag" }
+    post:
+      tags: [habits]
+      summary: Tag anlegen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                colorHex: { type: string }
+      responses:
+        "201":
+          description: Angelegt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+
+  /tags/{tagId}:
+    parameters:
+      - name: tagId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [habits]
+      summary: Tag ändern
+      responses:
+        "200":
+          description: Geändert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+    delete:
+      tags: [habits]
+      summary: Tag löschen (Soft-Delete)
+      responses:
+        "204": { description: Gelöscht }
+
+  # ────────────────────────────── entries ─────────────────────────────
+  /entries:
+    get:
+      tags: [entries]
+      summary: Einträge aller Habits in einem Zeitraum
+      description: Der Aufruf für die Heute- und die Kalenderansicht.
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Entry" }
+
+  /habits/{habitId}/entries:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - $ref: "#/components/parameters/From"
+      - $ref: "#/components/parameters/To"
+    get:
+      tags: [entries]
+      summary: Einträge eines Habits
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Entry" }
+
+  /habits/{habitId}/entries/{date}:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - $ref: "#/components/parameters/Date"
+    put:
+      tags: [entries]
+      summary: Tageswert setzen (idempotenter Upsert)
+      description: |
+        Der zentrale Schreibvorgang der App. Idempotent, weil über
+        `(habitId, date)` adressiert — deshalb ist ein doppelt gesendeter
+        Request nach Verbindungsabbruch unschädlich.
+
+        Bei Habits mit `tracksTime` ist `value` **abgeleitet** (Summe der
+        Events) und wird vom Server bzw. Store gepflegt; direktes Setzen
+        ersetzt dann die Events des Tages.
+
+        Wie weit zurück geschrieben werden darf, begrenzt die Einstellung
+        `backfillLimitDays` (Standard 7). Ohne diese Grenze trägt man sich
+        rückwirkend einen perfekten Monat ein und die Zahlen sind wertlos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { type: number }
+                note: { type: string, nullable: true }
+                source: { $ref: "#/components/schemas/EntrySource" }
+      responses:
+        "200":
+          description: Gesetzt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+        "422":
+          description: Liegt weiter zurück als `backfillLimitDays` erlaubt
+    delete:
+      tags: [entries]
+      summary: Tageswert löschen (Soft-Delete)
+      responses:
+        "204": { description: Gelöscht }
+
+  /habits/{habitId}/events:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - $ref: "#/components/parameters/From"
+      - $ref: "#/components/parameters/To"
+    get:
+      tags: [entries]
+      summary: Zeitstempel-Detail eines Habits
+      description: |
+        Nur für Habits mit `tracksTime`. Beantwortet Fragen wie „um welche
+        Uhrzeit rauche ich" und erlaubt „0,5 L jetzt dazubuchen".
+
+        Die Streak-Engine liest Events **nie** — sie arbeitet ausschließlich
+        auf `Entry.value`. Dadurch bleibt der Tages-Upsert idempotent.
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EntryEvent" }
+
+  /habits/{habitId}/events/{eventId}:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [entries]
+      summary: Event setzen (Upsert, ID kommt vom Client)
+      description: Der Tageswert des betroffenen Tages wird in derselben
+        Transaktion neu berechnet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntryEvent" }
+      responses:
+        "200":
+          description: Gesetzt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntryEvent" }
+    delete:
+      tags: [entries]
+      summary: Event löschen (Soft-Delete)
+      responses:
+        "204": { description: Gelöscht }
+
+  # ────────────────────────────── journal ─────────────────────────────
+  /days:
+    get:
+      tags: [journal]
+      summary: Tages-Journal über einen Zeitraum
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DayLog" }
+
+  /days/{date}:
+    parameters:
+      - $ref: "#/components/parameters/Date"
+    get:
+      tags: [journal]
+      summary: Journaleintrag eines Tages
+      responses:
+        "200":
+          description: Eintrag
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DayLog" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [journal]
+      summary: Journaleintrag setzen (idempotenter Upsert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DayLogDraft" }
+      responses:
+        "200":
+          description: Gesetzt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DayLog" }
+
+  /exceptions:
+    get:
+      tags: [journal]
+      summary: Tages-Ausnahmen in einem Zeitraum
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DayException" }
+    post:
+      tags: [journal]
+      summary: Ausnahme anlegen
+      description: |
+        Streak Freeze, Urlaub und bewusster Ruhetag sind dasselbe Konzept.
+        Sie unterscheiden sich nur in der Auswertung: ein Freeze rettet den
+        Streak, zählt in der Quote aber weiter als verpasst; Urlaub und
+        Ruhetag fallen ganz aus dem Nenner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DayException" }
+      responses:
+        "201":
+          description: Angelegt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DayException" }
+
+  /exceptions/{exceptionId}:
+    parameters:
+      - name: exceptionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [journal]
+      summary: Ausnahme zurücknehmen
+      responses:
+        "204": { description: Gelöscht }
+
+  /trash:
+    get:
+      tags: [journal]
+      summary: Papierkorb
+      description: |
+        Soft-gelöschte Zeilen der letzten 30 Tage. Grabsteine leben 90 Tage
+        (der Sync braucht sie), wiederherstellbar sind aber nur die letzten 30 —
+        ein späteres Restore würde sonst etwas zurückholen, das andere Geräte
+        längst verarbeitet haben.
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TrashItem" }
+
+  /trash/restore:
+    post:
+      tags: [journal]
+      summary: Gelöschtes wiederherstellen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TrashItem" }
+      responses:
+        "204": { description: Wiederhergestellt }
+
+  # ────────────────────────────── insights ────────────────────────────
+  /habits/{habitId}/stats:
+    parameters:
+      - $ref: "#/components/parameters/HabitId"
+      - $ref: "#/components/parameters/From"
+      - $ref: "#/components/parameters/To"
+    get:
+      tags: [insights]
+      summary: Streaks, Quote, Tagesstatus und Wochentagsverteilung
+      responses:
+        "200":
+          description: Auswertung
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HabitStats" }
+
+  /stats/summary:
+    get:
+      tags: [insights]
+      summary: Aggregat für die Heute-Ansicht
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/CalendarDate" }
+      responses:
+        "200":
+          description: Tagesübersicht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date: { $ref: "#/components/schemas/CalendarDate" }
+                  dueCount: { type: integer }
+                  completedCount: { type: integer }
+                  habits:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        habitId: { type: string, format: uuid }
+                        status: { $ref: "#/components/schemas/DayStatusCode" }
+                        value: { type: number }
+                        currentStreak: { type: integer }
+                        trend:
+                          oneOf:
+                            - { $ref: "#/components/schemas/TrendCode" }
+                            - { type: "null" }
+
+  /insights/correlations:
+    get:
+      tags: [insights]
+      summary: Zusammenhang zwischen Habits und Stimmung
+      description: |
+        Vergleicht die mittlere Stimmung an erfüllten und an verpassten Tagen.
+        Liefert immer `n` mit und erst ab n ≥ 10 je Seite ein Ergebnis —
+        eine Aussage aus drei Tagen wäre keine.
+
+        Das ist eine Beobachtung, keine Kausalaussage.
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Liste
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    habitId: { type: string, format: uuid }
+                    moodWhenCompleted: { type: number }
+                    moodWhenMissed: { type: number }
+                    nCompleted: { type: integer }
+                    nMissed: { type: integer }
+
+  /freezes:
+    get:
+      tags: [insights]
+      summary: Freeze-Kontostand und Verlauf (noch ohne UI)
+      description: |
+        Kontostand ist die Summe des Ledgers, global und nicht pro Habit —
+        sonst farmt man Tokens am leichten Habit und schützt den schweren.
+        Append-only: auditierbar, als Verlauf anzeigbar und beim Sync
+        konfliktfrei, weil nie überschrieben wird.
+      responses:
+        "200":
+          description: Kontostand
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance: { type: integer }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        amount: { type: integer }
+                        reason:
+                          type: string
+                          enum: [perfect_week, milestone, applied]
+                        date: { $ref: "#/components/schemas/CalendarDate" }
+
+  /freezes/apply:
+    post:
+      tags: [insights]
+      summary: Freeze auf einen Tag legen (noch ohne UI)
+      description: |
+        Schreibt eine `-1`-Zeile ins Ledger **und** eine `DayException(frozen)`.
+        Der Verbrauch wird persistiert, nicht beim Anzeigen berechnet — sonst
+        fiele die Statistik je nach Kontostand unterschiedlich aus und Streaks
+        änderten sich rückwirkend.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [habitId, date]
+              properties:
+                habitId: { type: string, format: uuid }
+                date: { $ref: "#/components/schemas/CalendarDate" }
+      responses:
+        "201": { description: Eingelöst }
+        "409": { description: Kein Guthaben }
+
+  # ──────────────────────────────── sync ──────────────────────────────
+  /sync:
+    get:
+      tags: [sync]
+      summary: Änderungen seit einem Cursor holen
+      description: |
+        Liefert alle Zeilen des Nutzers mit `serverSeq > since`, **inklusive
+        Grabsteinen**, nach `serverSeq` sortiert. Ein Client, der länger als
+        90 Tage offline war, macht einen vollen Reload statt eines Deltas —
+        so lange leben die Grabsteine.
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 500 }
+      responses:
+        "200":
+          description: Delta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncDelta" }
+    post:
+      tags: [sync]
+      summary: Lokale Änderungen hochladen
+      description: |
+        Der Client schickt alle als `dirty` markierten Zeilen. Der Server
+        vergibt eine neue `serverSeq`, setzt `updatedAt` auf **seine eigene**
+        Zeit und antwortet mit den autoritativen Werten.
+
+        Konflikte werden per Last-Write-Wins pro Datensatz aufgelöst. Liegt
+        das mitgeschickte `updatedAt` mehr als fünf Minuten in der Zukunft,
+        klemmt der Server es auf seine Zeit ab — eine falsch gestellte Uhr auf
+        einem Gerät soll nicht dauerhaft jeden Konflikt gewinnen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncDelta" }
+      responses:
+        "200":
+          description: Angewandt, mit autoritativen Werten
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncDelta" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: In v1 ein statisches Token aus einer Umgebungsvariable,
+        auf den Clients im Keychain abgelegt. Später ein JWT.
+
+  parameters:
+    HabitId:
+      name: habitId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Date:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/CalendarDate" }
+    From:
+      name: from
+      in: query
+      required: true
+      schema: { $ref: "#/components/schemas/CalendarDate" }
+    To:
+      name: to
+      in: query
+      required: true
+      schema: { $ref: "#/components/schemas/CalendarDate" }
+
+  responses:
+    NotFound:
+      description: Nicht gefunden
+
+  schemas:
+    CalendarDate:
+      type: string
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+      examples: ["2026-09-04"]
+      description: Lokaler Kalendertag ohne Uhrzeit und ohne Zeitzone.
+
+    HabitKind:
+      type: string
+      enum: [binary, quantity, avoid]
+
+    EntrySource:
+      type: string
+      enum: [manual, healthKit, shortcut, api, importedFile]
+      default: manual
+      description: Ein späterer HealthKit-Abgleich überschreibt niemals einen
+        Eintrag mit `manual` — die Korrektur von Hand gewinnt.
+
+    TimeOfDay:
+      type: string
+      enum: [morning, afternoon, evening, night]
+
+    Weekday:
+      type: integer
+      minimum: 1
+      maximum: 7
+      description: ISO-8601 — Montag ist 1, Sonntag ist 7.
+
+    Comparison:
+      type: string
+      enum: [atLeast, atMost]
+
+    DayStatusCode:
+      type: string
+      enum: [completed, partial, missed, frozen, paused, skipped, notScheduled, future]
+      description: |
+        `partial` tritt nur am laufenden Tag auf — ein vergangener Tag ist
+        entweder erfüllt oder verpasst, halb erledigt zählt rückblickend nicht.
+
+    TrendCode:
+      type: string
+      enum: [improving, stable, declining]
+
+    Schedule:
+      oneOf:
+        - type: object
+          required: [kind]
+          properties:
+            kind: { const: daily }
+        - type: object
+          required: [kind, days]
+          properties:
+            kind: { const: weekdays }
+            days:
+              type: array
+              items: { $ref: "#/components/schemas/Weekday" }
+        - type: object
+          required: [kind, n]
+          properties:
+            kind: { const: timesPerWeek }
+            n: { type: integer, minimum: 1, maximum: 7 }
+        - type: object
+          required: [kind, n, anchor]
+          properties:
+            kind: { const: everyNDays }
+            n: { type: integer, minimum: 1 }
+            anchor: { $ref: "#/components/schemas/CalendarDate" }
+      description: |
+        `timesPerWeek` wird **wochenweise** ausgewertet: ein leerer Dienstag ist
+        kein Versäumnis, wenn Montag, Mittwoch und Freitag erledigt wurden.
+        Streaks zählen dort in Wochen, nicht in Tagen.
+
+    Target:
+      type: object
+      required: [value, unit, comparison]
+      properties:
+        value: { type: number }
+        unit: { type: string, examples: ["L", "min", "Seiten"] }
+        comparison: { $ref: "#/components/schemas/Comparison" }
+
+    HabitRule:
+      type: object
+      required: [effectiveFrom, schedule]
+      properties:
+        effectiveFrom: { $ref: "#/components/schemas/CalendarDate" }
+        schedule: { $ref: "#/components/schemas/Schedule" }
+        target:
+          oneOf:
+            - { $ref: "#/components/schemas/Target" }
+            - { type: "null" }
+      description: Gilt ab `effectiveFrom` bis zur nächsten Regel. Vergangene
+        Tage behalten die damals gültige Version.
+
+    HealthKitLink:
+      type: object
+      required: [typeIdentifier, unit, aggregation]
+      properties:
+        typeIdentifier: { type: string, examples: ["HKQuantityTypeIdentifierStepCount"] }
+        unit: { type: string }
+        aggregation: { type: string, enum: [sum, max, latest] }
+
+    Habit:
+      type: object
+      required: [id, userId, name, kind, rules, colorHex, symbol, sortOrder,
+                 tagIds, tracksTime, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        name: { type: string }
+        notes: { type: string, nullable: true }
+        kind: { $ref: "#/components/schemas/HabitKind" }
+        rules:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/HabitRule" }
+        colorHex: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        symbol: { type: string, description: SF-Symbol-Name }
+        sortOrder: { type: integer }
+        tagIds:
+          type: array
+          items: { type: string, format: uuid }
+        timeOfDay:
+          oneOf:
+            - { $ref: "#/components/schemas/TimeOfDay" }
+            - { type: "null" }
+        preferredTime: { type: string, pattern: '^\d{2}:\d{2}$', nullable: true }
+        tracksTime: { type: boolean, default: false }
+        startsOn:
+          oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }]
+        endsOn:
+          oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }]
+        healthKitLink:
+          oneOf: [{ $ref: "#/components/schemas/HealthKitLink" }, { type: "null" }]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+        archivedOn:
+          oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }]
+          description: |
+            Bewusst ein Kalendertag, kein Zeitstempel: die Auswertung muss
+            wissen, ab welchem *Tag* nicht mehr geplant wird, ohne eine
+            Zeitzone zu kennen. Archiviert ist nicht gelöscht.
+
+    HabitDraft:
+      type: object
+      required: [name, kind, rules]
+      properties:
+        name: { type: string }
+        notes: { type: string }
+        kind: { $ref: "#/components/schemas/HabitKind" }
+        rules:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/HabitRule" }
+        colorHex: { type: string }
+        symbol: { type: string }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        timeOfDay: { $ref: "#/components/schemas/TimeOfDay" }
+        preferredTime: { type: string }
+        tracksTime: { type: boolean }
+        startsOn: { $ref: "#/components/schemas/CalendarDate" }
+        endsOn: { $ref: "#/components/schemas/CalendarDate" }
+
+    HabitPatch:
+      type: object
+      description: Nur gesetzte Felder werden geändert. Zeitplan und Ziel nicht —
+        die laufen über die Regel-Endpunkte.
+      properties:
+        name: { type: string }
+        notes: { type: string, nullable: true }
+        colorHex: { type: string }
+        symbol: { type: string }
+        sortOrder: { type: integer }
+        timeOfDay: { oneOf: [{ $ref: "#/components/schemas/TimeOfDay" }, { type: "null" }] }
+        preferredTime: { type: string, nullable: true }
+        tracksTime: { type: boolean }
+        startsOn: { oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }] }
+        endsOn: { oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }] }
+        archivedOn: { oneOf: [{ $ref: "#/components/schemas/CalendarDate" }, { type: "null" }] }
+        healthKitLink: { oneOf: [{ $ref: "#/components/schemas/HealthKitLink" }, { type: "null" }] }
+
+    Tag:
+      type: object
+      required: [id, userId, name, colorHex, sortOrder, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        name: { type: string }
+        colorHex: { type: string }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    Entry:
+      type: object
+      required: [id, habitId, date, value, source, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        habitId: { type: string, format: uuid }
+        date: { $ref: "#/components/schemas/CalendarDate" }
+        value:
+          type: number
+          description: "`binary`: 0 oder 1 · `quantity`: die Menge · `avoid`: Anzahl Verstöße."
+        note: { type: string, nullable: true }
+        source: { $ref: "#/components/schemas/EntrySource" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    EntryEvent:
+      type: object
+      required: [id, habitId, date, at, value, source, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        habitId: { type: string, format: uuid }
+        date:
+          allOf: [{ $ref: "#/components/schemas/CalendarDate" }]
+          description: Denormalisiert, damit die Tageszuordnung nicht von der
+            Zeitzone des Lesers abhängt.
+        at: { type: string, format: date-time }
+        value: { type: number }
+        note: { type: string, nullable: true }
+        source: { $ref: "#/components/schemas/EntrySource" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    DayException:
+      type: object
+      required: [id, date, kind, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        habitId:
+          type: string
+          format: uuid
+          nullable: true
+          description: "`null` heißt: gilt für alle Habits (Urlaub)."
+        date: { $ref: "#/components/schemas/CalendarDate" }
+        kind:
+          type: string
+          enum: [frozen, paused, skipped]
+        reason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    DayLogDraft:
+      type: object
+      properties:
+        mood: { type: integer, minimum: 1, maximum: 5, nullable: true }
+        energy: { type: integer, minimum: 1, maximum: 5, nullable: true }
+        sleepHours: { type: number, nullable: true }
+        note: { type: string, nullable: true }
+
+    DayLog:
+      allOf:
+        - $ref: "#/components/schemas/DayLogDraft"
+        - type: object
+          required: [date, userId, createdAt, updatedAt]
+          properties:
+            date: { $ref: "#/components/schemas/CalendarDate" }
+            userId: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            deletedAt: { type: string, format: date-time, nullable: true }
+
+    TrashItem:
+      type: object
+      required: [table, id]
+      properties:
+        table:
+          type: string
+          enum: [habit, entry, entry_event, day_exception, day_log, tag]
+        id: { type: string }
+        deletedAt: { type: string, format: date-time }
+        label: { type: string, description: Anzeigetext für die Papierkorb-Liste }
+
+    HabitStats:
+      type: object
+      required: [currentStreak, longestStreak, streakUnit, completedCount,
+                 evaluatedCount, days]
+      properties:
+        currentStreak: { type: integer }
+        longestStreak: { type: integer }
+        streakUnit:
+          type: string
+          enum: [days, weeks]
+        completionRate:
+          type: number
+          nullable: true
+          description: "`null`, wenn nichts zu bewerten war — keine erfundene Null."
+        completedCount: { type: integer }
+        evaluatedCount: { type: integer }
+        days:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/DayStatusCode" }
+          description: Schlüssel sind Kalendertage. Grundlage für Heatmap und Kalender.
+        weekdayBreakdown:
+          type: object
+          additionalProperties: { type: number }
+          description: Anteil erledigter an geplanten Tagen je ISO-Wochentag.
+
+    SyncDelta:
+      type: object
+      properties:
+        habits: { type: array, items: { $ref: "#/components/schemas/Habit" } }
+        tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
+        entries: { type: array, items: { $ref: "#/components/schemas/Entry" } }
+        events: { type: array, items: { $ref: "#/components/schemas/EntryEvent" } }
+        exceptions: { type: array, items: { $ref: "#/components/schemas/DayException" } }
+        dayLogs: { type: array, items: { $ref: "#/components/schemas/DayLog" } }
+        nextSeq: { type: integer, format: int64 }
+        hasMore: { type: boolean }
