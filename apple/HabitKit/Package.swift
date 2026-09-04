@@ -6,6 +6,12 @@ let package = Package(
     platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(name: "HabitCore", targets: ["HabitCore"]),
+        .library(name: "HabitStore", targets: ["HabitStore"]),
+    ],
+    dependencies: [
+        // Explizites SQL statt SwiftData: das lokale Schema soll 1:1 dem
+        // späteren Postgres-Schema entsprechen, inklusive der Sync-Spalten.
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
         // Reine Domäne: keine Abhängigkeiten, kein Foundation-Calendar, kein UI.
@@ -14,6 +20,11 @@ let package = Package(
         // Die Golden Fixtures liegen in spec/fixtures und werden über #filePath
         // gefunden, nicht ins Bundle kopiert: eine Quelle, die später auch die
         // TypeScript-Portierung liest.
+        .target(
+            name: "HabitStore",
+            dependencies: ["HabitCore", .product(name: "GRDB", package: "GRDB.swift")]
+        ),
         .testTarget(name: "HabitCoreTests", dependencies: ["HabitCore"]),
+        .testTarget(name: "HabitStoreTests", dependencies: ["HabitStore"]),
     ]
 )

@@ -1,0 +1,214 @@
+import Foundation
+import GRDB
+import HabitCore
+
+extension LocalHabitAPI {
+
+    // MARK: - Zusammensetzen
+
+    static func habitRow(_ id: UUID, db: Database) throws -> HabitRow? {
+        try HabitRow.fetchOne(db, sql: """
+            SELECT * FROM habit WHERE id = ? AND deleted_at IS NULL
+            """, arguments: [id.uuidString])
+    }
+
+    /// Ein Habit liegt über drei Tabellen verteilt.
+    static func assemble(_ row: HabitRow, db: Database) throws -> Habit {
+        let habitId = row.id
+        let rules = try HabitRuleRow.fetchAll(db, sql: """
+            SELECT * FROM habit_rule
+            WHERE habit_id = ? AND deleted_at IS NULL
+            ORDER BY effective_from
+            """, arguments: [habitId]).map { try $0.rule }
+
+        let tagIds = try String.fetchAll(db, sql: """
+            SELECT tag_id FROM habit_tag
+            WHERE habit_id = ? AND deleted_at IS NULL
+            """, arguments: [habitId]).compactMap(UUID.init(uuidString:))
+
+        return try row.habit(rules: rules, tagIds: tagIds)
+    }
+
+    /// Ersetzt die Tag-Menge vollständig.
+    ///
+    /// Entfernte Zuordnungen werden mit Grabstein versehen statt gelöscht — sonst
+    /// käme ein Ent-Taggen beim Sync auf anderen Geräten nie an.
+    static func replaceTags(habitId: UUID, tagIds: [UUID], now: Date, db: Database) throws {
+        let wanted = Set(tagIds.map(\.uuidString))
+
+        let existing = try HabitTagRow.fetchAll(db, sql: """
+            SELECT * FROM habit_tag WHERE habit_id = ?
+            """, arguments: [habitId.uuidString])
+
+        for row in existing where row.deletedAt == nil && !wanted.contains(row.tagId) {
+            try db.execute(sql: """
+                UPDATE habit_tag SET deleted_at = ?, updated_at = ?, dirty = 1
+                WHERE habit_id = ? AND tag_id = ?
+                """, arguments: [now, now, habitId.uuidString, row.tagId])
+        }
+
+        for tagId in wanted {
+            var row = HabitTagRow(habitId: habitId.uuidString, tagId: tagId,
+                                  createdAt: now, updatedAt: now, deletedAt: nil,
+                                  serverSeq: nil, dirty: true)
+            try row.upsert(db)   // hebt einen früheren Grabstein wieder auf
+        }
+    }
+
+    // MARK: - Einträge
+
+    static func upsertEntry(
+        habitId: UUID, date: CalendarDate, value: Double, note: String?,
+        source: EntrySource, userId: String, db: Database
+    ) throws -> Entry {
+        let now = Date()
+        // Adressiert über den natürlichen Schlüssel (habit_id, date), nicht über
+        // die ID — deshalb ist ein wiederholter Aufruf unschädlich.
+        if var existing = try EntryRow.fetchOne(db, sql: """
+            SELECT * FROM entry WHERE habit_id = ? AND date = ?
+            """, arguments: [habitId.uuidString, date.description]) {
+            existing.value = value
+            existing.note = note
+            existing.source = source
+            existing.updatedAt = now
+            existing.deletedAt = nil       // ein Wiedereintrag hebt den Grabstein auf
+            existing.dirty = true
+            try existing.update(db)
+            return existing.entry
+        }
+
+        var row = EntryRow(Entry(habitId: habitId, date: date, value: value,
+                                 note: note, source: source,
+                                 createdAt: now, updatedAt: now),
+                           userId: userId)
+        try row.insert(db)
+        return row.entry
+    }
+
+    /// Hält die Invariante `entry.value == Σ events` für Habits mit `tracksTime`.
+    ///
+    /// Bewusst hier und nicht beim Aufrufer: die Summe darf nie auseinanderlaufen,
+    /// und die Streak-Engine liest ausschließlich `entry.value`.
+    static func recomputeEntry(
+        habitId: UUID, date: CalendarDate, userId: String, db: Database
+    ) throws {
+        let sum = try Double.fetchOne(db, sql: """
+            SELECT COALESCE(SUM(value), 0) FROM entry_event
+            WHERE habit_id = ? AND date = ? AND deleted_at IS NULL
+            """, arguments: [habitId.uuidString, date.description]) ?? 0
+
+        let remaining = try Int.fetchOne(db, sql: """
+            SELECT COUNT(*) FROM entry_event
+            WHERE habit_id = ? AND date = ? AND deleted_at IS NULL
+            """, arguments: [habitId.uuidString, date.description]) ?? 0
+
+        if remaining == 0 {
+            // Ohne Events gibt es auch keinen abgeleiteten Tageswert mehr.
+            try db.execute(sql: """
+                UPDATE entry SET deleted_at = ?, updated_at = ?, dirty = 1
+                WHERE habit_id = ? AND date = ? AND deleted_at IS NULL
+                """, arguments: [Date(), Date(), habitId.uuidString, date.description])
+            return
+        }
+
+        _ = try upsertEntry(habitId: habitId, date: date, value: sum, note: nil,
+                            source: .manual, userId: userId, db: db)
+    }
+
+    // MARK: - Nachtrage-Grenze
+
+    /// Wirft, wenn ein Datum weiter zurückliegt als erlaubt.
+    ///
+    /// Ohne diese Grenze trägt man sich rückwirkend einen perfekten Monat ein
+    /// und die eigenen Zahlen sind nichts mehr wert. Zukünftige Daten sind
+    /// ebenfalls tabu — ein Habit lässt sich nicht im Voraus abhaken.
+    static func checkBackfill(date: CalendarDate, today: CalendarDate, db: Database) throws {
+        let limit = try readSetting(Self.backfillKey, db: db).flatMap(Int.init)
+            ?? Self.defaultBackfillLimitDays
+        if date > today {
+            throw HabitStoreError.backfillLimitExceeded(date: date, limitDays: limit)
+        }
+        guard limit > 0 else { return }        // 0 heißt: unbegrenzt
+        if date < today.adding(days: -limit) {
+            throw HabitStoreError.backfillLimitExceeded(date: date, limitDays: limit)
+        }
+    }
+
+    static let backfillKey = "backfill_limit_days"
+    static let defaultBackfillLimitDays = 7
+
+    static func readSetting(_ key: String, db: Database) throws -> String? {
+        try String.fetchOne(db, sql: "SELECT value FROM app_setting WHERE key = ?",
+                            arguments: [key])
+    }
+
+    public func backfillLimitDays() async throws -> Int {
+        try await dbQueue.read { db in
+            try Self.readSetting(Self.backfillKey, db: db).flatMap(Int.init)
+                ?? Self.defaultBackfillLimitDays
+        }
+    }
+
+    public func setBackfillLimitDays(_ days: Int) async throws {
+        try await dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO app_setting (key, value, updated_at, dirty) VALUES (?, ?, ?, 1)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value,
+                    updated_at = excluded.updated_at, dirty = 1
+                """, arguments: [Self.backfillKey, String(days), Date()])
+        }
+    }
+
+    // MARK: - Papierkorb
+
+    /// Wiederherstellbar sind die letzten 30 Tage.
+    ///
+    /// Grabsteine leben 90 Tage, weil der Sync sie so lange braucht. Etwas
+    /// zurückzuholen, das andere Geräte vor Monaten verarbeitet haben, wäre
+    /// aber verwirrend — deshalb zeigt der Papierkorb nur das jüngere Drittel.
+    public static let trashWindowDays = 30
+
+    public func trash() async throws -> [TrashItem] {
+        let cutoff = Date().addingTimeInterval(-Double(Self.trashWindowDays) * 86400)
+        return try await dbQueue.read { db in
+            var items: [TrashItem] = []
+
+            for row in try HabitRow.fetchAll(db, sql: """
+                SELECT * FROM habit WHERE deleted_at IS NOT NULL AND deleted_at >= ?
+                ORDER BY deleted_at DESC
+                """, arguments: [cutoff]) {
+                items.append(TrashItem(table: .habit, rowId: row.id,
+                                       deletedAt: row.deletedAt!, label: row.name))
+            }
+
+            for row in try EntryRow.fetchAll(db, sql: """
+                SELECT * FROM entry WHERE deleted_at IS NOT NULL AND deleted_at >= ?
+                ORDER BY deleted_at DESC
+                """, arguments: [cutoff]) {
+                items.append(TrashItem(table: .entry, rowId: row.id,
+                                       deletedAt: row.deletedAt!,
+                                       label: "Eintrag vom \(row.date)"))
+            }
+
+            for row in try TagRow.fetchAll(db, sql: """
+                SELECT * FROM tag WHERE deleted_at IS NOT NULL AND deleted_at >= ?
+                ORDER BY deleted_at DESC
+                """, arguments: [cutoff]) {
+                items.append(TrashItem(table: .tag, rowId: row.id,
+                                       deletedAt: row.deletedAt!, label: row.name))
+            }
+
+            return items.sorted { $0.deletedAt > $1.deletedAt }
+        }
+    }
+
+    public func restore(_ item: TrashItem) async throws {
+        try await dbQueue.write { db in
+            let table = item.table.rawValue
+            try db.execute(sql: """
+                UPDATE "\(table)" SET deleted_at = NULL, updated_at = ?, dirty = 1
+                WHERE id = ?
+                """, arguments: [Date(), item.rowId])
+        }
+    }
+}
