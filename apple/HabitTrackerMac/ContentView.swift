@@ -1,0 +1,172 @@
+import SwiftUI
+import HabitCore
+import HabitStore
+import HabitUI
+
+struct ContentView: View {
+    @Environment(AppState.self) private var state
+
+    @State private var selection: SidebarItem? = .today
+    @State private var editing: HabitEditorForm.Mode?
+    @State private var trashItems: [TrashItem] = []
+
+    enum SidebarItem: Hashable {
+        case today
+        case habits
+        case trash
+        case habit(UUID)
+    }
+
+    var body: some View {
+        @Bindable var state = state
+
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            detail
+        }
+        .sheet(item: $editing) { mode in
+            HabitEditorForm(
+                mode: mode,
+                tags: state.tags,
+                today: state.today,
+                onSave: { draft, patch, rule, tagIds in
+                    Task { await save(mode, draft, patch, rule, tagIds) }
+                    editing = nil
+                },
+                onCancel: { editing = nil }
+            )
+            .frame(minWidth: 480, minHeight: 620)
+        }
+        .alert("Fehler", isPresented: .constant(state.errorMessage != nil)) {
+            Button("OK") { state.errorMessage = nil }
+        } message: {
+            Text(state.errorMessage ?? "")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newHabitRequested)) { _ in
+            editing = .create
+        }
+    }
+
+    // MARK: - Seitenleiste
+
+    private var sidebar: some View {
+        List(selection: $selection) {
+            Section {
+                Label("Heute", systemImage: "sun.max")
+                    .badge(openToday)
+                    .tag(SidebarItem.today)
+                Label("Alle Habits", systemImage: "list.bullet")
+                    .tag(SidebarItem.habits)
+            }
+
+            if !state.habits.isEmpty {
+                Section("Habits") {
+                    ForEach(state.habits) { habit in
+                        Label {
+                            Text(habit.name)
+                        } icon: {
+                            Image(systemName: habit.symbol)
+                                .foregroundStyle(Color(hex: habit.colorHex))
+                        }
+                        .tag(SidebarItem.habit(habit.id))
+                    }
+                }
+            }
+
+            Section {
+                Label("Papierkorb", systemImage: "trash")
+                    .tag(SidebarItem.trash)
+            }
+        }
+        .navigationSplitViewColumnWidth(min: 190, ideal: 215)
+        .toolbar {
+            Button {
+                editing = .create
+            } label: {
+                Label("Neuer Habit", systemImage: "plus")
+            }
+            .help("Neuen Habit anlegen (⌘N)")
+        }
+    }
+
+    /// Wie viele der heute fälligen Habits noch offen sind.
+    private var openToday: Int {
+        let progress = state.todaysProgress
+        return progress.total - progress.done
+    }
+
+    // MARK: - Detail
+
+    @ViewBuilder
+    private var detail: some View {
+        switch selection {
+        case .today, .none:
+            if state.habits.isEmpty && !state.isLoading {
+                TemplatePicker(
+                    today: state.today,
+                    onPick: { draft in Task { await state.createHabit(draft) } },
+                    onCreateOwn: { editing = .create }
+                )
+            } else {
+                TodayView(onEdit: { editing = .edit($0) })
+            }
+
+        case .habits:
+            HabitListView(
+                onEdit: { editing = .edit($0) },
+                onSelect: { selection = .habit($0.id) }
+            )
+
+        case .habit(let id):
+            if let habit = state.habits.first(where: { $0.id == id }) {
+                HabitDetailView(habit: habit, onEdit: { editing = .edit(habit) })
+            } else {
+                ContentUnavailableView("Habit nicht gefunden", systemImage: "questionmark.circle")
+            }
+
+        case .trash:
+            TrashView(items: trashItems) { item in
+                Task {
+                    try? await state.api.restore(item)
+                    await state.reload()
+                    await loadTrash()
+                }
+            }
+            .task { await loadTrash() }
+        }
+    }
+
+    private func loadTrash() async {
+        trashItems = (try? await state.api.trash()) ?? []
+    }
+
+    // MARK: - Sichern
+
+    private func save(
+        _ mode: HabitEditorForm.Mode,
+        _ draft: HabitDraft,
+        _ patch: HabitPatch?,
+        _ rule: HabitRule?,
+        _ tagIds: [UUID]
+    ) async {
+        switch mode {
+        case .create:
+            await state.createHabit(draft)
+        case .edit(let habit):
+            if let patch { await state.updateHabit(habit.id, patch) }
+            if let rule { await state.setRule(habit.id, rule) }
+            await state.setTags(habit.id, tagIds)
+        }
+    }
+}
+
+/// Damit `.sheet(item:)` den Bearbeitungsmodus tragen kann.
+extension HabitEditorForm.Mode: @retroactive Identifiable {
+    public var id: String {
+        switch self {
+        case .create: "create"
+        case .edit(let habit): habit.id.uuidString
+        }
+    }
+}

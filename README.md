@@ -20,12 +20,26 @@ web/                React + Vite — einziger rein remote arbeitender Client
 
 ## Entwickeln
 
+Tests der gesamten Auswertungslogik — Regelauflösung, Erfüllung, Streaks,
+Ausnahmen, Trend, Kalenderarithmetik, Datenbank-Invarianten:
+
 ```bash
 cd apple/HabitKit && swift test
 ```
 
-Läuft ohne Xcode und deckt die gesamte Auswertungslogik ab — Regelauflösung,
-Erfüllung, Streaks, Ausnahmen, Trend, Kalenderarithmetik.
+Mac-App bauen und starten:
+
+```bash
+cd apple && xcodegen generate && open HabitTracker.xcodeproj
+```
+
+Das `.xcodeproj` wird aus `apple/project.yml` erzeugt und ist gitignored —
+eine generierte Datei, die niemand lesen oder zusammenführen will. XcodeGen
+kommt über `brew install xcodegen`. Nach jeder Änderung an `project.yml` oder
+nach dem Hinzufügen neuer Dateien `xcodegen generate` erneut ausführen.
+
+Die Datenbank liegt unter
+`~/Library/Application Support/HabitTracker/habits.sqlite`.
 
 ## Drei Entscheidungen, die alles andere erklären
 

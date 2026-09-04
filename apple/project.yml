@@ -1,0 +1,64 @@
+# XcodeGen erzeugt daraus das .xcodeproj. Diese Datei ist die Wahrheit und liegt
+# im Repo; das generierte Projekt ist gitignored — es ist eine unlesbare,
+# ständig verrauschende Datei, die niemand von Hand zusammenführen will.
+#
+# Erzeugen:  cd apple && xcodegen generate
+
+name: HabitTracker
+
+options:
+  bundleIdPrefix: de.jonasreinhard.habittracker
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+
+packages:
+  HabitKit:
+    path: HabitKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_STRICT_CONCURRENCY: complete
+    # Lokal ausführen ohne Developer-Account. Für ein echtes Gerät oder
+    # HealthKit später auf ein Team umstellen.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  HabitTrackerMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: HabitTrackerMac
+    dependencies:
+      - package: HabitKit
+        product: HabitUI
+      - package: HabitKit
+        product: HabitStore
+      - package: HabitKit
+        product: HabitCore
+    settings:
+      base:
+        PRODUCT_NAME: Habit Tracker
+        PRODUCT_BUNDLE_IDENTIFIER: de.jonasreinhard.habittracker.mac
+        GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        # Ohne Sandbox, damit die Datenbank ohne Entitlement in
+        # ~/Library/Application Support liegen kann.
+        ENABLE_APP_SANDBOX: "NO"
+        ENABLE_HARDENED_RUNTIME: "NO"
+        COMBINE_HIDPI_IMAGES: "YES"
+
+schemes:
+  HabitTrackerMac:
+    build:
+      targets:
+        HabitTrackerMac: all
+    run:
+      config: Debug

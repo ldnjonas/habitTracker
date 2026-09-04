@@ -19,3 +19,6 @@ dist/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Von XcodeGen erzeugt — die Wahrheit steht in apple/project.yml
+apple/*.xcodeproj

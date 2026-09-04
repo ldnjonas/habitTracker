@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "HabitCore", targets: ["HabitCore"]),
         .library(name: "HabitStore", targets: ["HabitStore"]),
+        .library(name: "HabitUI", targets: ["HabitUI"]),
     ],
     dependencies: [
         // Explizites SQL statt SwiftData: das lokale Schema soll 1:1 dem
@@ -23,6 +24,14 @@ let package = Package(
         .target(
             name: "HabitStore",
             dependencies: ["HabitCore", .product(name: "GRDB", package: "GRDB.swift")]
+        ),
+        // Geteilte Views für Mac und iPhone. Bedingung, damit das trägt:
+        // kein NSColor/UIColor, keine AppKit- oder UIKit-Importe, alles
+        // Plattformspezifische hinter #if os(macOS).
+        .target(
+            name: "HabitUI",
+            dependencies: ["HabitCore", "HabitStore"],
+            resources: [.process("Resources")]
         ),
         .testTarget(name: "HabitCoreTests", dependencies: ["HabitCore"]),
         .testTarget(name: "HabitStoreTests", dependencies: ["HabitStore"]),

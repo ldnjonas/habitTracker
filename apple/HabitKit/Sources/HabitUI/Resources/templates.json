@@ -1,0 +1,50 @@
+[
+  { "name": "Wasser trinken", "symbol": "drop.fill", "colorHex": "#0A84FF",
+    "kind": "quantity", "schedule": { "kind": "daily" },
+    "target": { "value": 2, "unit": "L", "comparison": "atLeast" },
+    "timeOfDay": "morning" },
+
+  { "name": "Sport", "symbol": "figure.run", "colorHex": "#FF375F",
+    "kind": "binary", "schedule": { "kind": "timesPerWeek", "n": 3 },
+    "timeOfDay": "evening" },
+
+  { "name": "Lesen", "symbol": "book.fill", "colorHex": "#BF5AF2",
+    "kind": "quantity", "schedule": { "kind": "daily" },
+    "target": { "value": 20, "unit": "Seiten", "comparison": "atLeast" },
+    "timeOfDay": "night" },
+
+  { "name": "Meditation", "symbol": "leaf.fill", "colorHex": "#30D158",
+    "kind": "quantity", "schedule": { "kind": "daily" },
+    "target": { "value": 10, "unit": "min", "comparison": "atLeast" },
+    "timeOfDay": "morning" },
+
+  { "name": "Früh aufstehen", "symbol": "sunrise.fill", "colorHex": "#FF9F0A",
+    "kind": "binary", "schedule": { "kind": "weekdays", "days": [1, 2, 3, 4, 5] },
+    "timeOfDay": "morning" },
+
+  { "name": "Kein Zucker", "symbol": "cube.fill", "colorHex": "#FF6482",
+    "kind": "avoid", "schedule": { "kind": "daily" } },
+
+  { "name": "Kein Alkohol", "symbol": "wineglass.fill", "colorHex": "#AC8E68",
+    "kind": "avoid", "schedule": { "kind": "daily" } },
+
+  { "name": "Social Media begrenzen", "symbol": "iphone", "colorHex": "#5E5CE6",
+    "kind": "quantity", "schedule": { "kind": "daily" },
+    "target": { "value": 30, "unit": "min", "comparison": "atMost" } },
+
+  { "name": "Spazieren gehen", "symbol": "figure.walk", "colorHex": "#64D2FF",
+    "kind": "quantity", "schedule": { "kind": "daily" },
+    "target": { "value": 8000, "unit": "Schritte", "comparison": "atLeast" },
+    "timeOfDay": "afternoon" },
+
+  { "name": "Tagebuch schreiben", "symbol": "square.and.pencil", "colorHex": "#FFD60A",
+    "kind": "binary", "schedule": { "kind": "daily" },
+    "timeOfDay": "night" },
+
+  { "name": "Vokabeln lernen", "symbol": "character.book.closed.fill", "colorHex": "#32ADE6",
+    "kind": "quantity", "schedule": { "kind": "weekdays", "days": [1, 2, 3, 4, 5] },
+    "target": { "value": 15, "unit": "min", "comparison": "atLeast" } },
+
+  { "name": "Wohnung aufräumen", "symbol": "sparkles", "colorHex": "#66D4CF",
+    "kind": "binary", "schedule": { "kind": "timesPerWeek", "n": 2 } }
+]
