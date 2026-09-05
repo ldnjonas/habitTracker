@@ -14,6 +14,10 @@ public final class AppState {
     public let api: any HabitAPI
 
     public private(set) var habits: [Habit] = []
+    /// Getrennt gehalten: archivierte Habits sollen nirgends mitzählen, wo
+    /// `habits` benutzt wird — aber erreichbar bleiben. Ohne einen Weg zurück
+    /// wäre Archivieren eine Falle.
+    public private(set) var archivedHabits: [Habit] = []
     public private(set) var tags: [Tag] = []
     /// Einträge des geladenen Zeitraums, für schnellen Zugriff je Habit und Tag.
     public private(set) var entries: [UUID: [CalendarDate: Entry]] = [:]
@@ -28,6 +32,10 @@ public final class AppState {
     public var today: CalendarDate
     /// Filter der Heute- und der Habit-Liste.
     public var selectedTagId: UUID?
+    /// Ob „Alle Habits" auch das Archiv zeigt.
+    public var showsArchived = false
+    /// Der Habit, für den die Löschrückfrage offen ist.
+    public var habitPendingDeletion: Habit?
 
     /// Geladener Zeitraum. Ein Jahr rückwärts deckt die Heatmap ab.
     private var loadedFrom: CalendarDate
@@ -47,7 +55,10 @@ public final class AppState {
         isLoading = true
         defer { isLoading = false }
         do {
-            habits = try await api.listHabits(includeArchived: false)
+            // Eine Abfrage für beides; die Trennung passiert hier.
+            let loaded = try await api.listHabits(includeArchived: true)
+            habits = loaded.filter { !$0.isArchived }
+            archivedHabits = loaded.filter(\.isArchived)
             tags = try await api.tags()
             focusRuns = try await api.focusRuns()
 
@@ -115,9 +126,18 @@ public final class AppState {
     }
 
     public var filteredHabits: [Habit] {
-        habits
+        (showsArchived ? habits + archivedHabits : habits)
             .filter { selectedTagId.map($0.tagIds.contains) ?? true }
-            .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+            .sorted {
+                // Archiviertes ans Ende, sonst nach Reihenfolge und Namen.
+                if $0.isArchived != $1.isArchived { return !$0.isArchived }
+                return ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name)
+            }
+    }
+
+    /// Sucht einen Habit, auch im Archiv.
+    public func habit(_ id: UUID) -> Habit? {
+        habits.first { $0.id == id } ?? archivedHabits.first { $0.id == id }
     }
 
     public func tag(_ id: UUID) -> Tag? { tags.first { $0.id == id } }
@@ -371,6 +391,13 @@ public final class AppState {
         await updateHabit(habit.id, HabitPatch(archivedOn: .some(today)))
     }
 
+    public func unarchive(_ habit: Habit) async {
+        await updateHabit(habit.id, HabitPatch(archivedOn: .some(nil)))
+    }
+
+    /// Wie lange Gelöschtes zurückholbar bleibt — für den Text der Rückfrage.
+    public var trashWindowDays: Int { LocalHabitAPI.trashWindowDays }
+
     public func delete(_ habit: Habit) async {
         do {
             try await api.deleteHabit(id: habit.id)
@@ -378,6 +405,13 @@ public final class AppState {
         } catch {
             errorMessage = String(describing: error)
         }
+    }
+
+    /// Löscht den Habit, für den die Rückfrage offen ist.
+    public func confirmPendingDeletion() async {
+        guard let habit = habitPendingDeletion else { return }
+        habitPendingDeletion = nil
+        await delete(habit)
     }
 
     // MARK: - Sicherung

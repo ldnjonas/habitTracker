@@ -16,16 +16,17 @@ struct HabitListView: View {
                 row(habit)
                     .contentShape(Rectangle())
                     .onTapGesture { onSelect(habit) }
-                    .contextMenu {
-                        Button("Bearbeiten …") { onEdit(habit) }
-                        Button("Archivieren") { Task { await state.archive(habit) } }
-                        Divider()
-                        Button("Löschen", role: .destructive) { Task { await state.delete(habit) } }
-                    }
+                    .contextMenu { actions(habit) }
             }
         }
         .navigationTitle("Alle Habits")
         .toolbar {
+            if !state.archivedHabits.isEmpty {
+                Toggle(isOn: $state.showsArchived) {
+                    Label("Archiv", systemImage: "archivebox")
+                }
+                .help("Archivierte Habits einblenden")
+            }
             if !state.tags.isEmpty {
                 Picker("Filter", selection: $state.selectedTagId) {
                     Text("Alle").tag(UUID?.none)
@@ -53,7 +54,16 @@ struct HabitListView: View {
                 .background(Color(hex: habit.colorHex).opacity(0.15), in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(habit.name)
+                HStack(spacing: 6) {
+                    Text(habit.name)
+                    if habit.isArchived {
+                        Text("archiviert")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(.quaternary, in: Capsule())
+                    }
+                }
                 HStack(spacing: 6) {
                     Text(habit.rule(on: state.today)?.schedule.label ?? "")
                     ForEach(habit.tagIds.compactMap(state.tag)) { TagChip(tag: $0) }
@@ -73,7 +83,25 @@ struct HabitListView: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .trailing)
+
+            HabitMenuButton(
+                habit: habit,
+                onEdit: { onEdit(habit) },
+                onArchive: { Task { await state.archive(habit) } },
+                onUnarchive: { Task { await state.unarchive(habit) } },
+                onDelete: { state.habitPendingDeletion = habit })
         }
         .padding(.vertical, 3)
+        .opacity(habit.isArchived ? 0.55 : 1)
+    }
+
+    @ViewBuilder
+    private func actions(_ habit: Habit) -> some View {
+        HabitActions(
+            habit: habit,
+            onEdit: { onEdit(habit) },
+            onArchive: { Task { await state.archive(habit) } },
+            onUnarchive: { Task { await state.unarchive(habit) } },
+            onDelete: { state.habitPendingDeletion = habit })
     }
 }

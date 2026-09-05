@@ -102,6 +102,19 @@ struct TodayView: View {
     }
 
     private func row(_ habit: Habit) -> some View {
+        HStack(spacing: 8) {
+            habitRow(habit)
+            HabitMenuButton(
+                habit: habit,
+                onEdit: { onEdit(habit) },
+                onArchive: { Task { await state.archive(habit) } },
+                onUnarchive: { Task { await state.unarchive(habit) } },
+                onDelete: { state.habitPendingDeletion = habit })
+        }
+        .contextMenu { actions(habit) }
+    }
+
+    private func habitRow(_ habit: Habit) -> some View {
         HabitRowView(
             habit: habit,
             date: state.today,
@@ -114,11 +127,15 @@ struct TodayView: View {
             onToggle: { Task { await state.toggle(habit, on: state.today) } },
             onAdjust: { delta in Task { await state.adjust(habit, on: state.today, by: delta) } }
         )
-        .contextMenu {
-            Button("Bearbeiten …") { onEdit(habit) }
-            Button("Archivieren") { Task { await state.archive(habit) } }
-            Divider()
-            Button("Löschen", role: .destructive) { Task { await state.delete(habit) } }
-        }
+    }
+
+    @ViewBuilder
+    private func actions(_ habit: Habit) -> some View {
+        HabitActions(
+            habit: habit,
+            onEdit: { onEdit(habit) },
+            onArchive: { Task { await state.archive(habit) } },
+            onUnarchive: { Task { await state.unarchive(habit) } },
+            onDelete: { state.habitPendingDeletion = habit })
     }
 }

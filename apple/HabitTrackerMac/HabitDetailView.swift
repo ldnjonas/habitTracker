@@ -51,6 +51,13 @@ struct HabitDetailView: View {
         .navigationTitle(habit.name)
         .toolbar {
             Button("Bearbeiten …", action: onEdit)
+            // Ohne das müsste man für jede andere Aktion zurück in die Liste.
+            HabitMenuButton(
+                habit: habit,
+                onEdit: onEdit,
+                onArchive: { Task { await state.archive(habit) } },
+                onUnarchive: { Task { await state.unarchive(habit) } },
+                onDelete: { state.habitPendingDeletion = habit })
         }
     }
 

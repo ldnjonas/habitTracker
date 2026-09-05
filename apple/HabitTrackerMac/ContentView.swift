@@ -41,6 +41,25 @@ struct ContentView: View {
             )
             .frame(minWidth: 480, minHeight: 620)
         }
+        // Eine Rückfrage für alle drei Stellen, an denen gelöscht werden kann —
+        // drei Kopien desselben Textes wären drei Gelegenheiten, ihn falsch zu
+        // pflegen.
+        .confirmationDialog(
+            "„\(state.habitPendingDeletion?.name ?? "")“ löschen?",
+            // Echte Zwei-Wege-Bindung statt `.constant`: schließt der Dialog
+            // auf anderem Weg, muss der Zustand mitgehen — sonst erschiene er
+            // sofort wieder.
+            isPresented: Binding(get: { state.habitPendingDeletion != nil },
+                                 set: { if !$0 { state.habitPendingDeletion = nil } }),
+            presenting: state.habitPendingDeletion
+        ) { _ in
+            Button("Löschen", role: .destructive) {
+                Task { await state.confirmPendingDeletion() }
+            }
+            Button("Abbrechen", role: .cancel) { state.habitPendingDeletion = nil }
+        } message: { _ in
+            Text("Der Habit und sein gesamter Verlauf liegen \(state.trashWindowDays) Tage im Papierkorb und lassen sich von dort zurückholen.")
+        }
         .alert("Fehler", isPresented: .constant(state.errorMessage != nil)) {
             Button("OK") { state.errorMessage = nil }
         } message: {
@@ -137,7 +156,7 @@ struct ContentView: View {
             )
 
         case .habit(let id):
-            if let habit = state.habits.first(where: { $0.id == id }) {
+            if let habit = state.habit(id) {
                 HabitDetailView(habit: habit, onEdit: { editing = .edit(habit) })
             } else {
                 ContentUnavailableView("Habit nicht gefunden", systemImage: "questionmark.circle")
