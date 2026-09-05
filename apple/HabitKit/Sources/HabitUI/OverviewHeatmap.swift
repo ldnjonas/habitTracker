@@ -41,6 +41,8 @@ public struct OverviewHeatmapView: View {
     public var selected: CalendarDate?
     /// Zeitraum eines Fokus-Laufs, der hervorgehoben wird.
     public var focusWindow: ClosedRange<CalendarDate>?
+    /// Ausnahmen je Tag — für Tooltip und eigene Färbung.
+    public var exceptions: [CalendarDate: ExceptionKind]
     public var onSelect: ((CalendarDate) -> Void)?
 
     private let cell: CGFloat = 11
@@ -57,6 +59,7 @@ public struct OverviewHeatmapView: View {
         tint: Color = .accentColor,
         selected: CalendarDate? = nil,
         focusWindow: ClosedRange<CalendarDate>? = nil,
+        exceptions: [CalendarDate: ExceptionKind] = [:],
         onSelect: ((CalendarDate) -> Void)? = nil
     ) {
         self.summaries = summaries
@@ -68,6 +71,7 @@ public struct OverviewHeatmapView: View {
         self.tint = tint
         self.selected = selected
         self.focusWindow = focusWindow
+        self.exceptions = exceptions
         self.onSelect = onSelect
     }
 
@@ -112,7 +116,7 @@ public struct OverviewHeatmapView: View {
         let isFuture = date > today
 
         RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-            .fill(fill(summary, isFuture: isFuture))
+            .fill(fill(summary, isFuture: isFuture, excepted: exceptions[date] != nil))
             .frame(width: cell, height: cell)
             .overlay {
                 if date == selected {
@@ -132,8 +136,12 @@ public struct OverviewHeatmapView: View {
             .onTapGesture { onSelect?(date) }
     }
 
-    private func fill(_ summary: DaySummary?, isFuture: Bool) -> Color {
+    private func fill(_ summary: DaySummary?, isFuture: Bool, excepted: Bool) -> Color {
         guard !isFuture, let summary, summary.completed > 0 else {
+            // Ein eigener Grauton für Ausnahmen: bei elf Punkten Kantenlänge ist
+            // kein Symbol lesbar, aber zwei Wochen Urlaub sollen als Block
+            // erkennbar sein statt als Lücke.
+            if excepted { return Color.secondary.opacity(0.30) }
             return Color.secondary.opacity(isFuture ? 0.06 : 0.12)
         }
         return tint.opacity(OverviewHeatmapView.opacity(for: level(summary)))
@@ -151,6 +159,9 @@ public struct OverviewHeatmapView: View {
 
     private func tooltip(_ date: CalendarDate, _ summary: DaySummary?, isFuture: Bool) -> String {
         guard !isFuture else { return date.longLabel }
+        if let kind = exceptions[date] {
+            return "\(date.longLabel) — \(kind.label)"
+        }
         guard let summary, summary.scheduled > 0 else {
             return "\(date.longLabel) — nichts geplant"
         }

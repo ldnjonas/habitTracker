@@ -36,6 +36,8 @@ public final class AppState {
     public var showsArchived = false
     /// Der Habit, für den die Löschrückfrage offen ist.
     public var habitPendingDeletion: Habit?
+    /// Der Tag, für den das Ausnahme-Blatt offen ist.
+    public var exceptionEditorDate: CalendarDate?
 
     /// Geladener Zeitraum. Ein Jahr rückwärts deckt die Heatmap ab.
     private var loadedFrom: CalendarDate
@@ -385,6 +387,82 @@ public final class AppState {
         } catch {
             errorMessage = String(describing: error)
         }
+    }
+
+    // MARK: - Ausnahmen
+
+    /// Trägt eine Ausnahme für einen Zeitraum ein.
+    ///
+    /// Je Tag eine Zeile: die Domäne wertet Tag für Tag aus, und ein
+    /// gespeicherter Zeitraum müsste beim Lesen ohnehin wieder in Tage zerlegt
+    /// werden. `habitIds` leer heißt global — dann trägt die Zeile
+    /// `habitId == nil` und gilt auch für später angelegte Habits.
+    public func addException(
+        kind: ExceptionKind,
+        from: CalendarDate,
+        to: CalendarDate,
+        habitIds: [UUID] = [],
+        reason: String? = nil
+    ) async {
+        do {
+            for date in from.through(to) {
+                if habitIds.isEmpty {
+                    _ = try await api.addException(
+                        DayException(habitId: nil, date: date, kind: kind, reason: reason))
+                } else {
+                    for habitId in habitIds {
+                        _ = try await api.addException(
+                            DayException(habitId: habitId, date: date,
+                                         kind: kind, reason: reason))
+                    }
+                }
+            }
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    /// Nimmt Ausnahmen eines Tages zurück.
+    ///
+    /// `habitId == nil` entfernt alle an diesem Tag, auch die globale — sonst
+    /// bliebe nach dem Aufheben eines Urlaubs eine unsichtbare Zeile stehen,
+    /// die den Tag weiterhin aus der Statistik nimmt.
+    public func removeExceptions(on date: CalendarDate, habitId: UUID? = nil) async {
+        let betroffen = exceptions.filter {
+            $0.date == date && (habitId == nil || $0.habitId == habitId || $0.habitId == nil)
+        }
+        guard !betroffen.isEmpty else { return }
+        do {
+            for exception in betroffen {
+                try await api.deleteException(id: exception.id)
+            }
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    /// Alle Ausnahmen eines Tages — für die Anzeige im Tagesdetail.
+    public func exceptions(on date: CalendarDate) -> [DayException] {
+        exceptions.filter { $0.date == date }
+    }
+
+    /// Je Tag eine Art, für die Raster der Übersicht.
+    ///
+    /// Liegen an einem Tag mehrere vor, gewinnt die weitreichendste: Urlaub sagt
+    /// mehr über den Tag aus als ein einzelner Ruhetag, und ein Freeze ist die
+    /// engste Aussage von allen.
+    public var exceptionKindsByDay: [CalendarDate: ExceptionKind] {
+        var result: [CalendarDate: ExceptionKind] = [:]
+        let rank: [ExceptionKind: Int] = [.paused: 3, .skipped: 2, .frozen: 1]
+        for exception in exceptions {
+            let vorhanden = result[exception.date]
+            if vorhanden == nil || rank[exception.kind, default: 0] > rank[vorhanden!, default: 0] {
+                result[exception.date] = exception.kind
+            }
+        }
+        return result
     }
 
     public func archive(_ habit: Habit) async {

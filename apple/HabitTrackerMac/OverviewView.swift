@@ -137,6 +137,7 @@ struct OverviewView: View {
                 busiestDay: state.colorReference,
                 selected: selectedDay,
                 focusWindow: focusWindow,
+                exceptions: state.exceptionKindsByDay,
                 onSelect: select)
             .padding(.vertical, 4)
 
@@ -150,6 +151,7 @@ struct OverviewView: View {
                 busiestDay: state.colorReference,
                 selected: selectedDay,
                 focusWindow: focusWindow,
+                exceptions: state.exceptionKindsByDay,
                 onSelect: select)
         }
     }
@@ -194,6 +196,28 @@ struct OverviewView: View {
                 .help("Schließen")
             }
 
+            let exceptions = state.exceptions(on: date)
+            if !exceptions.isEmpty {
+                ForEach(exceptions) { exception in
+                    HStack(spacing: 8) {
+                        Image(systemName: DayStatus.excepted(exception.kind).symbolName ?? "circle")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                        Text(exception.kind.label)
+                        if let reason = exception.reason {
+                            Text("· \(reason)").foregroundStyle(.secondary)
+                        }
+                        Text(exception.habitId == nil
+                             ? "· alle Habits"
+                             : "· \(state.habit(exception.habitId!)?.name ?? "ein Habit")")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .font(.callout)
+                }
+                Divider()
+            }
+
             if breakdown.isEmpty {
                 Text("An diesem Tag stand nichts an.")
                     .font(.callout).foregroundStyle(.secondary)
@@ -212,6 +236,19 @@ struct OverviewView: View {
                     }
                 }
             }
+
+            Divider()
+
+            HStack {
+                Button("Ausnahme eintragen …") { state.exceptionEditorDate = date }
+                if !state.exceptions(on: date).isEmpty {
+                    Button("Ausnahme aufheben", role: .destructive) {
+                        Task { await state.removeExceptions(on: date) }
+                    }
+                }
+                Spacer()
+            }
+            .controlSize(.small)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

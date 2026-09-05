@@ -1,6 +1,11 @@
 import SwiftUI
 import HabitCore
 
+/// Damit `.sheet(item:)` einen Tag tragen kann.
+extension CalendarDate: Identifiable {
+    public var id: String { description }
+}
+
 // MARK: - Farben
 
 public extension Color {

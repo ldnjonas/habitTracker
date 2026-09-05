@@ -17,6 +17,9 @@ public struct OverviewCalendarGrid: View {
     public var selected: CalendarDate?
     /// Zeitraum eines Fokus-Laufs, der hervorgehoben wird.
     public var focusWindow: ClosedRange<CalendarDate>?
+    /// Ausnahmen je Tag. Ohne das sähe ein Urlaubstag aus wie „nichts geplant“ —
+    /// beides ergibt `scheduled == 0`, meint aber Verschiedenes.
+    public var exceptions: [CalendarDate: ExceptionKind]
     public var onSelect: ((CalendarDate) -> Void)?
 
     public init(
@@ -29,6 +32,7 @@ public struct OverviewCalendarGrid: View {
         tint: Color = .accentColor,
         selected: CalendarDate? = nil,
         focusWindow: ClosedRange<CalendarDate>? = nil,
+        exceptions: [CalendarDate: ExceptionKind] = [:],
         onSelect: ((CalendarDate) -> Void)? = nil
     ) {
         self.summaries = summaries
@@ -40,6 +44,7 @@ public struct OverviewCalendarGrid: View {
         self.tint = tint
         self.selected = selected
         self.focusWindow = focusWindow
+        self.exceptions = exceptions
         self.onSelect = onSelect
     }
 
@@ -100,10 +105,16 @@ public struct OverviewCalendarGrid: View {
                     .strokeBorder(Color.primary.opacity(0.5), lineWidth: 1.5)
             }
 
-            Text("\(date.day)")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(level >= 3 ? .white : .secondary)
-                .padding(5)
+            HStack(spacing: 3) {
+                Text("\(date.day)")
+                    .font(.caption2.monospacedDigit())
+                if let kind = exceptions[date],
+                   let symbol = DayStatus.excepted(kind).symbolName {
+                    Image(systemName: symbol).font(.system(size: 9))
+                }
+            }
+            .foregroundStyle(level >= 3 ? .white : .secondary)
+            .padding(5)
 
             if !isFuture, let summary, summary.scheduled > 0 {
                 VStack(spacing: 0) {
@@ -126,6 +137,9 @@ public struct OverviewCalendarGrid: View {
 
     private func tooltip(_ date: CalendarDate, _ summary: DaySummary?, isFuture: Bool) -> String {
         guard !isFuture else { return date.longLabel }
+        if let kind = exceptions[date] {
+            return "\(date.longLabel) — \(kind.label)"
+        }
         guard let summary, summary.scheduled > 0 else {
             return "\(date.longLabel) — nichts geplant"
         }

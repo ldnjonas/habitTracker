@@ -41,6 +41,20 @@ struct ContentView: View {
             )
             .frame(minWidth: 480, minHeight: 620)
         }
+        .sheet(item: $state.exceptionEditorDate) { date in
+            ExceptionEditor(
+                habits: state.habits,
+                today: state.today,
+                initialDate: date,
+                onSave: { kind, from, to, habitIds, reason in
+                    state.exceptionEditorDate = nil
+                    Task {
+                        await state.addException(kind: kind, from: from, to: to,
+                                                 habitIds: habitIds, reason: reason)
+                    }
+                },
+                onCancel: { state.exceptionEditorDate = nil })
+        }
         // Eine Rückfrage für alle Stellen, an denen gelöscht werden kann —
         // mehrere Kopien desselben Textes wären mehrere Gelegenheiten, ihn
         // falsch zu pflegen.

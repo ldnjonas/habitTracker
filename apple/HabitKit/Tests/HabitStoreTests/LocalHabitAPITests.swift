@@ -834,3 +834,129 @@ struct StoreFocusTests {
         #expect(result.successRate == 0.5)
     }
 }
+
+@Suite("Ausnahmen durch den Store")
+struct ExceptionTests {
+
+    /// Der Grund, warum es Ausnahmen überhaupt gibt.
+    @Test("Urlaub über mehrere Tage rettet den Streak")
+    func vacationKeepsStreak() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft(from: "2026-08-25"))
+        _ = try await store.setBackfillLimitDays(0)
+        for day in ["2026-08-25", "2026-08-26", "2026-09-03", "2026-09-04"] {
+            try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: day)!,
+                                     value: 1, note: nil, source: .manual)
+        }
+
+        // Ohne Ausnahme reicht die Serie nur bis zur Lücke zurück.
+        let davor = try await store.stats(habitId: habit.id,
+                                          from: CalendarDate(iso: "2026-08-25")!, to: today)
+        #expect(davor.currentStreak == 2)
+
+        // 27.08. bis 02.09. als Urlaub eintragen.
+        for date in CalendarDate(iso: "2026-08-27")!.through(CalendarDate(iso: "2026-09-02")!) {
+            _ = try await store.addException(
+                DayException(habitId: nil, date: date, kind: .paused, reason: "Urlaub"))
+        }
+
+        let danach = try await store.stats(habitId: habit.id,
+                                           from: CalendarDate(iso: "2026-08-25")!, to: today)
+        #expect(danach.currentStreak == 4, "die pausierten Tage dürfen die Serie nicht trennen")
+        // Pausierte Tage fallen ganz heraus, statt die Quote zu drücken.
+        #expect(danach.completionRate == 1.0)
+    }
+
+    @Test("Das Aufheben stellt den alten Stand wieder her")
+    func removingRestoresPreviousState() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft(from: "2026-08-25"))
+        _ = try await store.setBackfillLimitDays(0)
+        for day in ["2026-09-01", "2026-09-04"] {
+            try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: day)!,
+                                     value: 1, note: nil, source: .manual)
+        }
+        let exception = try await store.addException(
+            DayException(habitId: nil, date: CalendarDate(iso: "2026-09-02")!, kind: .paused))
+        _ = try await store.addException(
+            DayException(habitId: nil, date: CalendarDate(iso: "2026-09-03")!, kind: .paused))
+
+        #expect(try await store.stats(habitId: habit.id,
+                                      from: CalendarDate(iso: "2026-09-01")!,
+                                      to: today).currentStreak == 2)
+
+        try await store.deleteException(id: exception.id)
+        let danach = try await store.stats(habitId: habit.id,
+                                           from: CalendarDate(iso: "2026-09-01")!, to: today)
+        #expect(danach.currentStreak == 1, "der 02.09. zählt wieder als verpasst")
+    }
+
+    @Test("Eine globale Ausnahme wirkt auf alle Habits, eine gezielte nur auf ihren")
+    func scopeIsRespected() async throws {
+        let store = try makeStore()
+        let sport = try await store.createHabit(dailyDraft("Sport", from: "2026-09-01"))
+        let lesen = try await store.createHabit(dailyDraft("Lesen", from: "2026-09-01"))
+        let date = CalendarDate(iso: "2026-09-02")!
+
+        _ = try await store.addException(DayException(habitId: sport.id, date: date, kind: .skipped))
+        var sportTage = try await store.stats(habitId: sport.id, from: date, to: date).days
+        var lesenTage = try await store.stats(habitId: lesen.id, from: date, to: date).days
+        #expect(sportTage[date] == .excepted(.skipped))
+        #expect(lesenTage[date] == .missed, "die gezielte Ausnahme darf nicht überschwappen")
+
+        _ = try await store.addException(DayException(habitId: nil, date: date, kind: .paused))
+        lesenTage = try await store.stats(habitId: lesen.id, from: date, to: date).days
+        sportTage = try await store.stats(habitId: sport.id, from: date, to: date).days
+        #expect(lesenTage[date] == .excepted(.paused))
+        // Die habit-eigene Ausnahme ist die genauere Aussage und behält den Vorrang.
+        #expect(sportTage[date] == .excepted(.skipped))
+    }
+
+    /// Ein Freeze rettet den Streak, schönt die Statistik aber nicht — sonst
+    /// wäre die Quote nichts wert.
+    @Test("Ein Freeze hält den Streak, drückt aber die Quote")
+    func freezeKeepsStreakButNotRate() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft(from: "2026-09-01"))
+        _ = try await store.setBackfillLimitDays(0)
+        for day in ["2026-09-01", "2026-09-03", "2026-09-04"] {
+            try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: day)!,
+                                     value: 1, note: nil, source: .manual)
+        }
+        _ = try await store.addException(
+            DayException(habitId: habit.id, date: CalendarDate(iso: "2026-09-02")!, kind: .frozen))
+
+        let stats = try await store.stats(habitId: habit.id,
+                                          from: CalendarDate(iso: "2026-09-01")!, to: today)
+        // Drei, nicht vier: eine Ausnahme unterbricht die Serie nicht, verlängert
+        // sie aber auch nicht. Der Freeze überbrückt die Lücke, ohne sich einen
+        // erledigten Tag anzurechnen — sonst könnte man sich Streak kaufen.
+        #expect(stats.currentStreak == 3)
+        #expect(stats.completionRate == 0.75, "der eingefrorene Tag bleibt im Nenner")
+    }
+
+    @Test("Ein Urlaubstag nimmt auch die Übersicht aus dem Nenner")
+    func vacationLeavesOverviewDenominator() async throws {
+        let store = try makeStore()
+        let sport = try await store.createHabit(dailyDraft("Sport", from: "2026-09-01"))
+        let lesen = try await store.createHabit(dailyDraft("Lesen", from: "2026-09-01"))
+        let date = CalendarDate(iso: "2026-09-02")!
+        try await store.setEntry(habitId: sport.id, date: date, value: 1,
+                                 note: nil, source: .manual)
+
+        let habits = try await store.listHabits(includeArchived: false)
+        let entries = try await store.entries(habitId: nil, from: date, to: date)
+
+        var summaries = overview(habits: habits, entries: entries, exceptions: [],
+                                 from: date, to: date, today: today)
+        #expect(summaries[date]?.scheduled == 2)
+        #expect(summaries[date]?.isPerfect == false)
+
+        _ = try await store.addException(DayException(habitId: lesen.id, date: date, kind: .paused))
+        let exceptions = try await store.exceptions(from: date, to: date)
+        summaries = overview(habits: habits, entries: entries, exceptions: exceptions,
+                             from: date, to: date, today: today)
+        #expect(summaries[date]?.scheduled == 1, "„Lesen“ stand an diesem Tag nicht an")
+        #expect(summaries[date]?.isPerfect == true)
+    }
+}

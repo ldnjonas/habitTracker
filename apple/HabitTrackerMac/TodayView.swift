@@ -39,6 +39,12 @@ struct TodayView: View {
                     }
                 }
             }
+            Button {
+                state.exceptionEditorDate = state.today
+            } label: {
+                Label("Ausnahme …", systemImage: "beach.umbrella")
+            }
+            .help("Urlaub oder Ruhetag eintragen — betroffene Tage reißen den Streak dann nicht")
         }
     }
 

@@ -32,6 +32,25 @@ public extension CalendarDate {
         let c = calendar.dateComponents([.year, .month, .day], from: now)
         return CalendarDate(year: c.year!, month: c.month!, day: c.day!)!
     }
+
+    /// Der lokale Kalendertag, in den dieser Zeitstempel fällt.
+    init(_ date: Date, in timeZone: TimeZone = .current) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        self.init(year: c.year!, month: c.month!, day: c.day!)!
+    }
+
+    /// Ein Zeitstempel für diesen Tag — für `DatePicker` und ähnliche Steuerungen.
+    ///
+    /// Bewusst **12 Uhr** und nicht Mitternacht: bei einer Zeitzonen- oder
+    /// Sommerzeitverschiebung kippt Mitternacht auf den Vortag, Mittag nicht.
+    func asDate(in timeZone: TimeZone = .current) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar.date(from: DateComponents(
+            year: year, month: month, day: day, hour: 12)) ?? Date()
+    }
 }
 
 /// JSON-Kodierung für die wenigen Felder, die als Text in einer Spalte liegen
