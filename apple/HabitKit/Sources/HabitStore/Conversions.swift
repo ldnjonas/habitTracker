@@ -19,6 +19,7 @@ extension EntrySource: DatabaseValueConvertible {}
 extension ExceptionKind: DatabaseValueConvertible {}
 extension TimeOfDay: DatabaseValueConvertible {}
 extension Comparison: DatabaseValueConvertible {}
+extension FreezeReason: DatabaseValueConvertible {}
 
 /// Aktueller Kalendertag in einer Zeitzone.
 ///

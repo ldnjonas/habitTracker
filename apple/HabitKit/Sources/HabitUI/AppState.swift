@@ -23,6 +23,8 @@ public final class AppState {
     public private(set) var entries: [UUID: [CalendarDate: Entry]] = [:]
     public private(set) var exceptions: [DayException] = []
     public private(set) var focusRuns: [FocusRun] = []
+    /// Verfügbare Streak Freezes.
+    public private(set) var freezeBalance: Int = 0
     public private(set) var isLoading = false
 
     /// Fehler werden angezeigt, nicht verschluckt — eine Datenbank, die nicht
@@ -98,6 +100,12 @@ public final class AppState {
             }
             entries = grouped
             refreshColorReference()
+
+            // Beim Nachladen mitbuchen, was durchgezogene Läufe verdient haben.
+            // Idempotent über die Lauf-id — sonst hinkte der Kontostand
+            // hinterher, bis jemand zufällig den Fokus-Tab öffnet.
+            try await api.awardPendingFreezes()
+            freezeBalance = try await api.freezeBalance()
         } catch {
             errorMessage = String(describing: error)
         }
@@ -401,6 +409,23 @@ public final class AppState {
     public func setTags(_ habitId: UUID, _ tagIds: [UUID]) async {
         do {
             _ = try await api.setTags(habitId: habitId, tagIds: tagIds)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    // MARK: - Freezes
+
+    /// Ob dieser Tag für diesen Habit einfrierbar ist — und Guthaben da ist.
+    public func canFreeze(_ habit: Habit, on date: CalendarDate) -> Bool {
+        freezeBalance > 0
+            && HabitCore.canFreeze(status(habit, on: date), on: date, today: today)
+    }
+
+    public func applyFreeze(_ habit: Habit, on date: CalendarDate) async {
+        do {
+            _ = try await api.applyFreeze(habitId: habit.id, date: date)
             await reload()
         } catch {
             errorMessage = String(describing: error)

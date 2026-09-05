@@ -79,6 +79,23 @@ Sonderfälle, dass ein Wochenziel keinen einzelnen Tag reißen kann und Urlaub
 den Tag herausnimmt. Ein Streak Freeze rettet einen Fokus dagegen nicht — er ist
 das strengere Versprechen.
 
+## Streak Freezes
+
+Ein durchgezogener Fokus-Lauf bringt einen Freeze, höchstens drei auf dem Konto.
+Eingelöst rettet er einen **bereits verpassten** Tag: der Streak hält, die Quote
+bleibt ehrlich — ein eingefrorener Tag steht weiter in ihrem Nenner.
+
+Drei Regeln, die zusammen verhindern, dass der Streak wertlos wird:
+
+- **Ein Ledger, kein Zähler.** Der Kontostand ist die Summe der Buchungen. Ein
+  Zähler kann falsch werden, ohne dass man sieht wie; beim Sync bleibt eine
+  Buchungsreihe konfliktfrei, weil nur angehängt wird.
+- **Die Obergrenze deckelt, und darüber verfällt der Anspruch.** Sonst sammelt
+  sich über Monate ein Polster an, das jeden Streak beliebig am Leben hält.
+- **Ein Freeze überbrückt, er verlängert nicht.** Er rechnet sich keinen
+  erledigten Tag an — sonst ließe sich Streak kaufen. Und er geht nur auf
+  Vergangenes: ein Freeze auf die Zukunft wäre eine Vorabentschuldigung.
+
 ## Sicherung
 
 „Sicherung → Sichern" schreibt eine JSON-Datei — den gesamten Bestand oder

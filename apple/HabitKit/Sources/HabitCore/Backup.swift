@@ -28,6 +28,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
     public var exceptions: [DayException]
     public var dayLogs: [DayLog]
     public var focusRuns: [FocusRun]
+    public var freezes: [FreezeEntry]
 
     public enum Scope: String, Codable, Sendable, Hashable {
         /// Der gesamte Bestand.
@@ -47,7 +48,8 @@ public struct BackupFile: Codable, Hashable, Sendable {
         events: [EntryEvent] = [],
         exceptions: [DayException] = [],
         dayLogs: [DayLog] = [],
-        focusRuns: [FocusRun] = []
+        focusRuns: [FocusRun] = [],
+        freezes: [FreezeEntry] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -60,6 +62,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
         self.exceptions = exceptions
         self.dayLogs = dayLogs
         self.focusRuns = focusRuns
+        self.freezes = freezes
     }
 
     /// Von Hand, weil die synthetisierte Fassung fehlende Schlüssel als Fehler
@@ -81,6 +84,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
         exceptions = try c.decodeIfPresent([DayException].self, forKey: .exceptions) ?? []
         dayLogs = try c.decodeIfPresent([DayLog].self, forKey: .dayLogs) ?? []
         focusRuns = try c.decodeIfPresent([FocusRun].self, forKey: .focusRuns) ?? []
+        freezes = try c.decodeIfPresent([FreezeEntry].self, forKey: .freezes) ?? []
     }
 
     /// Zusammenfassung für die Bestätigung vor dem Import.
@@ -93,6 +97,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
         if !exceptions.isEmpty { parts.append("\(exceptions.count) Ausnahmen") }
         if !dayLogs.isEmpty { parts.append("\(dayLogs.count) Journaltage") }
         if !focusRuns.isEmpty { parts.append("\(focusRuns.count) Fokus-Läufe") }
+        if !freezes.isEmpty { parts.append("\(freezes.count) Freeze-Buchungen") }
         return parts.isEmpty ? "leer" : parts.joined(separator: " · ")
     }
 
@@ -300,13 +305,14 @@ public struct ImportReport: Hashable, Sendable {
     public var exceptions = Counts()
     public var dayLogs = Counts()
     public var focusRuns = Counts()
+    public var freezes = Counts()
     /// Nicht fatale Auffälligkeiten, die dem Nutzer angezeigt werden sollten.
     public var problems: [BackupProblem] = []
 
     public init(mode: ImportMode) { self.mode = mode }
 
     private var allCounts: [Counts] {
-        [habits, tags, entries, events, exceptions, dayLogs, focusRuns]
+        [habits, tags, entries, events, exceptions, dayLogs, focusRuns, freezes]
     }
 
     public var totalInserted: Int {

@@ -642,42 +642,57 @@ paths:
 
   /freezes:
     get:
-      tags: [insights]
-      summary: Freeze-Kontostand und Verlauf (noch ohne UI)
+      tags: [freezes]
+      summary: Buchungen und Kontostand
       description: |
-        Kontostand ist die Summe des Ledgers, global und nicht pro Habit —
-        sonst farmt man Tokens am leichten Habit und schützt den schweren.
-        Append-only: auditierbar, als Verlauf anzeigbar und beim Sync
-        konfliktfrei, weil nie überschrieben wird.
+        Ein **Ledger, kein Zähler**: der Kontostand ist die Summe der
+        Buchungen, nie ein gespeicherter Wert. Ein Zähler kann falsch werden,
+        ohne dass man sieht wie — eine Buchungsreihe nicht, und beim Sync
+        bleibt sie konfliktfrei, weil nur angehängt wird. Deshalb tragen die
+        Zeilen weder `updatedAt` noch einen Grabstein: eine Buchung wird nicht
+        geändert und nicht gelöscht, eine Korrektur ist eine Gegenbuchung.
+
+        **Verdient** wird durch einen durchgezogenen Fokus-Lauf — einer je
+        Lauf, höchstens drei auf dem Konto. Ohne Obergrenze sammelt sich über
+        Monate ein Polster an, das jeden Streak beliebig lange am Leben hält;
+        dann sagt er nichts mehr aus. Steht das Konto voll, **verfällt** der
+        Anspruch, statt aufgespart und später nachgezahlt zu werden.
+
+        `focusRunId` macht das Einbuchen idempotent: die Auswertung eines Laufs
+        wird bei jedem Lesen neu gerechnet, die Einzahlung darf trotzdem nur
+        einmal geschehen.
       responses:
         "200":
-          description: Kontostand
+          description: Konto
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   balance: { type: integer }
-                  entries:
+                  maximum: { type: integer }
+                  ledger:
                     type: array
-                    items:
-                      type: object
-                      properties:
-                        amount: { type: integer }
-                        reason:
-                          type: string
-                          enum: [perfect_week, milestone, applied]
-                        date: { $ref: "#/components/schemas/CalendarDate" }
+                    items: { $ref: "#/components/schemas/FreezeEntry" }
 
   /freezes/apply:
     post:
-      tags: [insights]
-      summary: Freeze auf einen Tag legen (noch ohne UI)
+      tags: [freezes]
+      summary: Einen Freeze für einen Tag einlösen
       description: |
-        Schreibt eine `-1`-Zeile ins Ledger **und** eine `DayException(frozen)`.
-        Der Verbrauch wird persistiert, nicht beim Anzeigen berechnet — sonst
-        fiele die Statistik je nach Kontostand unterschiedlich aus und Streaks
-        änderten sich rückwirkend.
+        Legt eine `DayException` mit `kind: frozen` an **und** bucht −1 — in
+        einer Transaktion. Getrennt könnten sie auseinanderlaufen, und ein
+        geretteter Tag ohne Abzug wäre ein Freeze umsonst.
+
+        Nur auf einen **bereits verpassten** Tag: einen erfüllten braucht man
+        nicht zu retten, und der laufende ist noch nicht verloren. Ein Freeze
+        auf die Zukunft wäre eine Vorabentschuldigung — genau das, was ein
+        Streak nicht aussagen soll. Es gilt dieselbe Nachtrage-Grenze wie für
+        Einträge.
+
+        Der Streak hält danach, die Quote nicht: ein eingefrorener Tag bleibt
+        in ihrem Nenner. Und er verlängert den Streak nicht, er überbrückt ihn
+        nur — sonst ließe sich Streak kaufen.
       requestBody:
         required: true
         content:
@@ -689,8 +704,13 @@ paths:
                 habitId: { type: string, format: uuid }
                 date: { $ref: "#/components/schemas/CalendarDate" }
       responses:
-        "201": { description: Eingelöst }
+        "201":
+          description: Eingelöst
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DayException" }
         "409": { description: Kein Guthaben }
+        "422": { description: Dieser Tag lässt sich nicht einfrieren }
 
   # ─────────────────────────────── focus ──────────────────────────────
   /focus:
@@ -1436,6 +1456,10 @@ components:
           type: array
           items: { $ref: "#/components/schemas/FocusRun" }
           description: Nur beim Vollexport — ein Lauf gehört keinem einzelnen Habit.
+        freezes:
+          type: array
+          items: { $ref: "#/components/schemas/FreezeEntry" }
+          description: Nur beim Vollexport. Ohne sie wäre das Guthaben nach einer Wiederherstellung weg.
 
     ImportReport:
       type: object
@@ -1448,6 +1472,7 @@ components:
         exceptions: { $ref: "#/components/schemas/ImportCounts" }
         dayLogs: { $ref: "#/components/schemas/ImportCounts" }
         focusRuns: { $ref: "#/components/schemas/ImportCounts" }
+        freezes: { $ref: "#/components/schemas/ImportCounts" }
         problems:
           type: array
           items: { type: string }
@@ -1540,3 +1565,36 @@ components:
           oneOf:
             - { type: number }
             - { type: "null" }
+
+    FreezeReason:
+      type: string
+      enum: [focusCompleted, applied, granted]
+
+    FreezeEntry:
+      type: object
+      required: [id, amount, reason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        amount:
+          type: integer
+          description: Positiv verdient, negativ eingelöst.
+        reason: { $ref: "#/components/schemas/FreezeReason" }
+        habitId:
+          description: Bei einer Einlösung der gerettete Habit.
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        date:
+          description: Bei einer Einlösung der gerettete Tag.
+          oneOf:
+            - { $ref: "#/components/schemas/CalendarDate" }
+            - { type: "null" }
+        focusRunId:
+          description: |
+            Bei `focusCompleted` der Lauf, der eingezahlt hat — daran erkennt
+            der Server, dass derselbe Lauf nicht zweimal einzahlt.
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        createdAt: { type: string, format: date-time }

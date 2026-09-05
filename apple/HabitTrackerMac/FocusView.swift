@@ -22,8 +22,11 @@ struct FocusView: View {
                 let progress = state.focusProgress
 
                 if !progress.isEmpty {
-                    FocusRecordRow(record: state.focusRecord)
-                        .padding(.bottom, 2)
+                    HStack(alignment: .top, spacing: 28) {
+                        FocusRecordRow(record: state.focusRecord)
+                        freezeBalance
+                    }
+                    .padding(.bottom, 2)
                 }
 
                 if let active = state.activeFocus {
@@ -71,6 +74,20 @@ struct FocusView: View {
         return "Es läuft bereits ein Fokus bis zum \(active.run.endsOn.shortLabel) "
             + "Einen neuen kannst du starten, sobald er vorbei ist — oder wenn du ihn oben abbrichst. "
             + "Ein gerissener Lauf blockiert nicht."
+    }
+
+    /// Das Freeze-Guthaben — hier, weil es hier verdient wird.
+    private var freezeBalance: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "snowflake").font(.callout)
+                Text("\(state.freezeBalance)").font(.title2).monospacedDigit()
+            }
+            .foregroundStyle(state.freezeBalance > 0 ? .cyan : .secondary)
+            Text(state.freezeBalance == 1 ? "Freeze" : "Freezes")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .help("Ein durchgezogener Fokus bringt einen Freeze, höchstens \(FreezeRule.maximum). Einlösbar auf einen verpassten Tag in der Übersicht.")
     }
 
     // MARK: - Starten

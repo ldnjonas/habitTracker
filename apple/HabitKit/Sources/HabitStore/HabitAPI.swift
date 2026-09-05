@@ -64,6 +64,14 @@ public protocol HabitAPI: Sendable {
     func abandonFocus(id: UUID) async throws
     func deleteFocusRun(id: UUID) async throws
 
+    // Freezes
+    func freezeLedger() async throws -> [FreezeEntry]
+    func freezeBalance() async throws -> Int
+    @discardableResult
+    func awardPendingFreezes() async throws -> Int
+    @discardableResult
+    func applyFreeze(habitId: UUID, date: CalendarDate) async throws -> DayException
+
     // Sicherung
     /// `habitIds == nil` sichert den gesamten Bestand.
     func exportBackup(habitIds: Set<UUID>?, generator: String) async throws -> BackupFile
@@ -202,6 +210,10 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
     case invalidFocusLength(Int)
     /// Eine Sitzung, deren Ende nicht nach dem Start liegt.
     case invalidInterval(at: Date, endsAt: Date)
+    /// Kein Guthaben für einen Freeze.
+    case noFreezeAvailable
+    /// Nur ein bereits verpasster Tag lässt sich einfrieren.
+    case dayNotFreezable(date: CalendarDate, status: String)
 
     public var description: String {
         switch self {
@@ -217,6 +229,10 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
             "Ein Fokus braucht mindestens einen Tag, nicht \(days)"
         case .invalidInterval:
             "Das Ende einer Sitzung muss nach ihrem Start liegen"
+        case .noFreezeAvailable:
+            "Kein Freeze im Guthaben"
+        case .dayNotFreezable(let date, let status):
+            "\(date) lässt sich nicht einfrieren (\(status))"
         }
     }
 }

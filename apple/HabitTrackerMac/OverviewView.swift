@@ -231,6 +231,15 @@ struct OverviewView: View {
                             .frame(width: 16)
                         Text(item.habit.name)
                         Spacer()
+                        if state.canFreeze(item.habit, on: date) {
+                            Button {
+                                Task { await state.applyFreeze(item.habit, on: date) }
+                            } label: {
+                                Label("Retten", systemImage: "snowflake")
+                            }
+                            .controlSize(.small)
+                            .help("Einen Streak Freeze einlösen — der Streak hält, die Quote bleibt ehrlich (\(state.freezeBalance) übrig)")
+                        }
                         Text(item.status.label)
                             .font(.caption).foregroundStyle(.secondary)
                     }

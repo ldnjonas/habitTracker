@@ -421,3 +421,42 @@ struct FocusRunRow: SnakeCaseRecord {
         }
     }
 }
+
+// MARK: - freeze_ledger
+
+/// Nur anhängen: keine `updated_at`, kein Grabstein. Eine Buchung wird nicht
+/// geändert und nicht zurückgenommen — eine Korrektur ist eine Gegenbuchung.
+struct FreezeRow: SnakeCaseRecord {
+    static let databaseTableName = "freeze_ledger"
+
+    var id: String
+    var userId: String
+    var amount: Int
+    var reason: FreezeReason
+    var habitId: String?
+    var date: CalendarDate?
+    var focusRunId: String?
+    var createdAt: Date
+    var serverSeq: Int64?
+    var dirty: Bool
+
+    init(_ entry: FreezeEntry) {
+        id = entry.id.uuidString
+        userId = entry.userId
+        amount = entry.amount
+        reason = entry.reason
+        habitId = entry.habitId?.uuidString
+        date = entry.date
+        focusRunId = entry.focusRunId?.uuidString
+        createdAt = entry.createdAt
+        serverSeq = nil
+        dirty = true
+    }
+
+    var entry: FreezeEntry {
+        FreezeEntry(id: UUID(uuidString: id)!, userId: userId, amount: amount,
+                    reason: reason, habitId: habitId.flatMap(UUID.init(uuidString:)),
+                    date: date, focusRunId: focusRunId.flatMap(UUID.init(uuidString:)),
+                    createdAt: createdAt)
+    }
+}

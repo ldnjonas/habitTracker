@@ -88,6 +88,13 @@ extension LocalHabitAPI {
                     """, arguments: [userId]).map { try $0.focus }
                 : []
 
+            // Wie die Läufe: das Konto gehört keinem einzelnen Habit.
+            let freezes = habitIds == nil
+                ? try FreezeRow.fetchAll(db, sql: """
+                    SELECT * FROM freeze_ledger WHERE user_id = ? ORDER BY created_at
+                    """, arguments: [userId]).map(\.entry)
+                : []
+
             let dayLogs = habitIds == nil
                 ? try DayLogRow.fetchAll(db, sql: """
                     SELECT * FROM day_log WHERE user_id = ? AND deleted_at IS NULL ORDER BY date
@@ -99,7 +106,7 @@ extension LocalHabitAPI {
                 scope: habitIds == nil ? .full : .habits,
                 habits: habits, tags: tags, entries: entries,
                 events: events, exceptions: exceptions, dayLogs: dayLogs,
-                focusRuns: focusRuns)
+                focusRuns: focusRuns, freezes: freezes)
         }
     }
 }
@@ -132,7 +139,8 @@ extension LocalHabitAPI {
                 // bisherige Bestand nicht mehr existiert — auch nicht als Rest,
                 // den ein späterer Sync wieder ans Licht holt.
                 for table in ["entry_event", "entry", "day_exception", "habit_tag",
-                              "habit_rule", "habit", "tag", "day_log", "focus_run"] {
+                              "habit_rule", "habit", "tag", "day_log", "focus_run",
+                              "freeze_ledger"] {
                     try db.execute(sql: "DELETE FROM \(table)")
                 }
             }
@@ -283,6 +291,22 @@ extension LocalHabitAPI {
                 case .insert: try row.insert(db); report.focusRuns.inserted += 1
                 case .update: try row.upsert(db); report.focusRuns.updated += 1
                 case .skip: report.focusRuns.skipped += 1
+                }
+            }
+
+            // --- Freeze-Buchungen. Über die id, und nie aktualisiert: eine
+            // Buchung ändert sich nicht, eine Korrektur ist eine Gegenbuchung.
+            for freeze in file.freezes {
+                var row = FreezeRow(freeze)
+                row.userId = userId
+                let vorhanden = try Int.fetchOne(
+                    db, sql: "SELECT COUNT(*) FROM freeze_ledger WHERE id = ?",
+                    arguments: [row.id]) ?? 0
+                if vorhanden == 0 {
+                    try row.insert(db)
+                    report.freezes.inserted += 1
+                } else {
+                    report.freezes.skipped += 1
                 }
             }
 

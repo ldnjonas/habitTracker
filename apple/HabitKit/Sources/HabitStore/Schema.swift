@@ -250,6 +250,15 @@ enum Schema {
             }
         }
 
+        // Ohne den Bezug auf den Lauf ließe sich nicht sagen, ob er schon
+        // eingezahlt hat — und da `evaluate` sein Ergebnis bei jedem Aufruf neu
+        // ausrechnet, zahlte derselbe Lauf bei jedem Nachladen erneut ein.
+        migrator.registerMigration("v5-freeze-source") { db in
+            try db.alter(table: "freeze_ledger") { t in
+                t.add(column: "focus_run_id", .text)
+            }
+        }
+
         return migrator
     }
 }
