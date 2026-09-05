@@ -159,8 +159,10 @@ struct ContentView: View {
                 Button("") { Task { await state.toggle(habit, on: state.today) } }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [])
             }
-            .opacity(0)
-            .frame(width: 0, height: 0)
+            // Nicht auf Nullgröße setzen: für einen Knopf ohne Fläche richtet
+            // SwiftUI kein Tastenkürzel ein.
+            .opacity(0.001)
+            .allowsHitTesting(false)
         }
     }
 
