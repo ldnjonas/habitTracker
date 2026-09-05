@@ -389,6 +389,35 @@ public final class AppState {
         }
     }
 
+    // MARK: - Sitzungen
+
+    /// Trägt eine Sitzung ein. Der Tag ergibt sich aus dem Start — eine Sitzung
+    /// über Mitternacht gehört zu dem Tag, an dem sie begonnen hat.
+    public func addSession(habitId: UUID, start: Date, end: Date) async {
+        do {
+            _ = try await api.setEvent(EntryEvent(
+                habitId: habitId, date: CalendarDate(start),
+                at: start, endsAt: end, value: 0))
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func deleteSession(habitId: UUID, eventId: UUID) async {
+        do {
+            try await api.deleteEvent(habitId: habitId, eventId: eventId)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func periodTotal(_ habit: Habit,
+                            from: CalendarDate, to: CalendarDate) -> PeriodTotal {
+        HabitCore.periodTotal(for: habit, entries: allEntries, from: from, to: to)
+    }
+
     // MARK: - Ausnahmen
 
     /// Trägt eine Ausnahme für einen Zeitraum ein.

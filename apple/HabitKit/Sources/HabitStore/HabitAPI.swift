@@ -200,6 +200,8 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
     /// Es läuft bereits ein Fokus, der noch heil ist.
     case focusAlreadyRunning(id: UUID, endsOn: CalendarDate)
     case invalidFocusLength(Int)
+    /// Eine Sitzung, deren Ende nicht nach dem Start liegt.
+    case invalidInterval(at: Date, endsAt: Date)
 
     public var description: String {
         switch self {
@@ -213,6 +215,8 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
             "Es läuft bereits ein Fokus bis zum \(endsOn)"
         case .invalidFocusLength(let days):
             "Ein Fokus braucht mindestens einen Tag, nicht \(days)"
+        case .invalidInterval:
+            "Das Ende einer Sitzung muss nach ihrem Start liegen"
         }
     }
 }

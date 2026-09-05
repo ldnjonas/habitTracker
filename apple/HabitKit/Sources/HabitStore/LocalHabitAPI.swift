@@ -325,7 +325,14 @@ public final class LocalHabitAPI: HabitAPI {
         let today = currentDate()
         return try await dbQueue.write { [userId] db in
             try Self.checkBackfill(date: event.date, today: today, db: db)
+            guard event.hasValidInterval else {
+                throw HabitStoreError.invalidInterval(at: event.at, endsAt: event.endsAt!)
+            }
             var row = EntryEventRow(event)
+            // Eine Quelle der Wahrheit: liegt ein Ende vor, gilt die Dauer und
+            // nicht der mitgeschickte Wert. Sonst behaupten zwei Felder
+            // Verschiedenes über dieselbe Sitzung.
+            row.value = event.effectiveValue
             row.updatedAt = Date()
             try row.upsert(db)
             try Self.recomputeEntry(habitId: event.habitId, date: event.date,

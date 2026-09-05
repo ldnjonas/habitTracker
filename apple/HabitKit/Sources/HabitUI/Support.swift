@@ -6,6 +6,26 @@ extension CalendarDate: Identifiable {
     public var id: String { description }
 }
 
+// MARK: - Dauern
+
+/// Minuten als „45 min“, „1 h 25 min“, „2 h“.
+///
+/// Nicht als Dezimalzahl: „1,42 h“ muss man im Kopf umrechnen, bevor man weiß,
+/// ob man sein Ziel erreicht hat.
+public func formatMinutes(_ minutes: Double) -> String {
+    let gesamt = Int(minutes.rounded())
+    let stunden = gesamt / 60
+    let rest = gesamt % 60
+    if stunden == 0 { return "\(rest) min" }
+    if rest == 0 { return "\(stunden) h" }
+    return "\(stunden) h \(rest) min"
+}
+
+/// Uhrzeit ohne Datum, für Sitzungszeilen.
+public func formatClock(_ date: Date) -> String {
+    date.formatted(date: .omitted, time: .shortened)
+}
+
 // MARK: - Farben
 
 public extension Color {

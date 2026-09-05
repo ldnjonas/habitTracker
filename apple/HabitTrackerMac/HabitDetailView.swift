@@ -9,6 +9,10 @@ struct HabitDetailView: View {
     var onEdit: () -> Void
 
     @State private var month: CalendarDate = CalendarDate.today().monthStart
+    /// Nur für Habits mit `tracksTime` geladen — es gibt keinen Grund, die
+    /// Sitzungen aller Habits im Speicher zu halten.
+    @State private var events: [EntryEvent] = []
+    @State private var sessionDay: CalendarDate = CalendarDate.today()
 
     private var color: Color { Color(hex: habit.colorHex) }
 
@@ -22,6 +26,39 @@ struct HabitDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 StatsPanel(stats: stats, color: color)
+
+                if habit.tracksTime {
+                    card("Zeit") {
+                        PeriodTotalPanel(
+                            habit: habit,
+                            total: state.periodTotal(habit,
+                                                     from: state.today.adding(days: -83).weekStart,
+                                                     to: state.today),
+                            today: state.today)
+                    }
+
+                    card("Sitzungen", trailing: { sessionNavigation }) {
+                        SessionList(
+                            habit: habit,
+                            date: sessionDay,
+                            sessions: HabitCore.sessions(of: habit, on: sessionDay,
+                                                         events: events),
+                            onAdd: { start, end in
+                                Task {
+                                    await state.addSession(habitId: habit.id,
+                                                           start: start, end: end)
+                                    await loadEvents()
+                                }
+                            },
+                            onDelete: { session in
+                                Task {
+                                    await state.deleteSession(habitId: habit.id,
+                                                              eventId: session.id)
+                                    await loadEvents()
+                                }
+                            })
+                    }
+                }
 
                 card("Jahresverlauf") {
                     HeatmapView(habit: habit, days: stats.days, today: state.today) { date in
@@ -48,6 +85,7 @@ struct HabitDetailView: View {
             }
             .padding(20)
         }
+        .task(id: habit.id) { await loadEvents() }
         .navigationTitle(habit.name)
         .toolbar {
             Button("Bearbeiten …", action: onEdit)
@@ -59,6 +97,30 @@ struct HabitDetailView: View {
                 onUnarchive: { Task { await state.unarchive(habit) } },
                 onDelete: { state.habitPendingDeletion = habit })
         }
+    }
+
+    /// Blättert durch die Tage der Sitzungsliste.
+    private var sessionNavigation: some View {
+        HStack(spacing: 4) {
+            Button { sessionDay = sessionDay.adding(days: -1) } label: {
+                Image(systemName: "chevron.left")
+            }
+            Button { sessionDay = state.today } label: { Text("Heute") }
+                .disabled(sessionDay == state.today)
+            Button { sessionDay = sessionDay.adding(days: 1) } label: {
+                Image(systemName: "chevron.right")
+            }
+            .disabled(sessionDay >= state.today)
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+    }
+
+    private func loadEvents() async {
+        guard habit.tracksTime else { events = []; return }
+        events = (try? await state.api.events(habitId: habit.id,
+                                              from: state.today.adding(days: -400),
+                                              to: state.today)) ?? []
     }
 
     // MARK: - Kopf

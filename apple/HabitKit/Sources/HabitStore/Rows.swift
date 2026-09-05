@@ -258,6 +258,7 @@ struct EntryEventRow: SnakeCaseRecord {
     var habitId: String
     var date: CalendarDate
     var at: Date
+    var endsAt: Date?
     var value: Double
     var note: String?
     var source: EntrySource
@@ -275,6 +276,7 @@ struct EntryEventRow: SnakeCaseRecord {
         habitId = event.habitId.uuidString
         date = event.date
         at = event.at
+        endsAt = event.endsAt
         value = event.value
         note = event.note
         source = event.source
@@ -288,7 +290,7 @@ struct EntryEventRow: SnakeCaseRecord {
 
     var event: EntryEvent {
         EntryEvent(id: UUID(uuidString: id)!, habitId: UUID(uuidString: habitId)!,
-                   date: date, at: at, value: value, note: note, source: source,
+                   date: date, at: at, endsAt: endsAt, value: value, note: note, source: source,
                    createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt)
     }
 }

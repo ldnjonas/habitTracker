@@ -45,6 +45,22 @@ Das App-Icon wird erzeugt, nicht gemalt — `python3 tools/make-app-icon.py`
 schreibt alle zehn Größen in den Asset-Katalog. Zeigt das Dock danach noch das
 alte, hält LaunchServices es fest: `touch <App>.app && killall Dock`.
 
+## Zeiterfassung
+
+Ein Habit mit „Sitzungen mit Uhrzeit erfassen“ nimmt Start und Ende statt einer
+Zahl. Der Tageswert ergibt sich aus der Summe der Sitzungsdauern, die
+Wochensumme aus den Tageswerten — beides hält der Store, nicht der Aufrufer.
+
+Zwei Regeln, die daraus folgen: Liegt ein Ende vor, **gilt die Dauer und nicht
+der mitgeschickte Wert** — zwei Felder, die dasselbe über dieselbe Sitzung
+sagen, driften sonst auseinander. Und eine Sitzung über Mitternacht zählt zum
+Starttag, weil `date` denormalisiert ist und die Zuordnung nicht von der
+Zeitzone des Lesers abhängen darf.
+
+Der Schnitt in der Zeit-Karte bezieht sich auf Tage **mit** Aktivität. Ein
+Schnitt über alle Tage beantwortet nichts: er sinkt, sobald man den Zeitraum
+vergrößert, ohne dass sich am Verhalten etwas geändert hat.
+
 ## Fokus
 
 Ein Fokus ist ein selbst gesetztes Fenster — typischerweise sieben Tage — in dem

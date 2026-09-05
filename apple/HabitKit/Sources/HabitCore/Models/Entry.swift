@@ -51,7 +51,15 @@ public struct EntryEvent: Codable, Identifiable, Hashable, Sendable {
     /// Der lokale Tag, zu dem das Event zählt — denormalisiert, damit die
     /// Tageszuordnung nicht von der Zeitzone des Lesers abhängt.
     public var date: CalendarDate
+    /// Beginn der Sitzung.
     public var at: Date
+    /// Ende, wenn es eine Sitzung mit Dauer ist.
+    ///
+    /// Ist es gesetzt, **leitet der Store `value` daraus ab** (Minuten), statt
+    /// es vom Aufrufer zu übernehmen. Zwei Felder, die dasselbe sagen, driften
+    /// sonst auseinander — dieselbe Begründung, aus der nicht der Aufrufer,
+    /// sondern der Store die Tagessumme hält.
+    public var endsAt: Date?
     public var value: Double
     public var note: String?
     public var source: EntrySource
@@ -64,6 +72,7 @@ public struct EntryEvent: Codable, Identifiable, Hashable, Sendable {
         habitId: UUID,
         date: CalendarDate,
         at: Date,
+        endsAt: Date? = nil,
         value: Double,
         note: String? = nil,
         source: EntrySource = .manual,
@@ -75,12 +84,34 @@ public struct EntryEvent: Codable, Identifiable, Hashable, Sendable {
         self.habitId = habitId
         self.date = date
         self.at = at
+        self.endsAt = endsAt
         self.value = value
         self.note = note
         self.source = source
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
+    }
+
+    /// Dauer in Minuten — `nil`, solange kein Ende gesetzt ist.
+    public var durationMinutes: Double? {
+        endsAt.map { $0.timeIntervalSince(at) / 60 }
+    }
+
+    /// Der Wert, der für diesen Eintrag zählt.
+    ///
+    /// Bei einer Sitzung mit Ende die Dauer, sonst der gesetzte Wert. Der Store
+    /// schreibt genau das in die Spalte, damit die Tagessumme stimmt, ohne dass
+    /// jemand beide Felder von Hand im Einklang halten muss.
+    public var effectiveValue: Double {
+        durationMinutes ?? value
+    }
+
+    /// Ob Start und Ende zueinander passen. Ein Ende vor dem Start ist kein
+    /// Grenzfall, sondern ein Tippfehler.
+    public var hasValidInterval: Bool {
+        guard let endsAt else { return true }
+        return endsAt > at
     }
 }
 

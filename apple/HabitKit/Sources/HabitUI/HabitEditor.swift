@@ -46,6 +46,7 @@ public struct HabitEditorForm: View {
     @State private var targetValue = 1.0
     @State private var targetUnit = ""
     @State private var comparison: Comparison = .atLeast
+    @State private var tracksTime = false
     @State private var timeOfDay: TimeOfDay?
     @State private var selectedTags: Set<UUID> = []
     @State private var colorHex = "#4F8DF7"
@@ -107,6 +108,21 @@ public struct HabitEditorForm: View {
                         TextField("Wert", value: $targetValue, format: .number)
                         TextField("Einheit", text: $targetUnit)
                             .frame(maxWidth: 120)
+                            .disabled(tracksTime)
+                    }
+
+                    Toggle("Sitzungen mit Uhrzeit erfassen", isOn: $tracksTime)
+                        .onChange(of: tracksTime) {
+                            // Die Einheit festnageln: der Tageswert ist dann die
+                            // Summe der Sitzungsdauern, und die zählt in Minuten.
+                            // Eine abweichende Einheit wäre schlicht gelogen.
+                            if tracksTime { targetUnit = "min" }
+                        }
+
+                    if tracksTime {
+                        Text("Du trägst Start und Ende ein, der Tageswert ergibt sich aus der Dauer. Das Ziel gilt weiter pro Tag — die Wochensumme steht in der Detailansicht.")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -239,6 +255,7 @@ public struct HabitEditorForm: View {
         name = habit.name
         notes = habit.notes ?? ""
         kind = habit.kind
+        tracksTime = habit.tracksTime
         colorHex = habit.colorHex
         symbol = habit.symbol
         timeOfDay = habit.timeOfDay
@@ -301,6 +318,7 @@ public struct HabitEditorForm: View {
                 notes: notes.isEmpty ? nil : notes,
                 colorHex: colorHex, symbol: symbol,
                 tagIds: Array(selectedTags), timeOfDay: timeOfDay,
+                tracksTime: kind == .quantity && tracksTime,
                 startsOn: isChallenge ? startsOn : nil,
                 endsOn: isChallenge ? endsOn : nil
             )
@@ -313,6 +331,7 @@ public struct HabitEditorForm: View {
                 colorHex: colorHex,
                 symbol: symbol,
                 timeOfDay: .some(timeOfDay),
+                tracksTime: kind == .quantity && tracksTime,
                 startsOn: .some(isChallenge ? startsOn : nil),
                 endsOn: .some(isChallenge ? endsOn : nil)
             )

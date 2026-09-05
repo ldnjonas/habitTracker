@@ -242,6 +242,14 @@ enum Schema {
                           columns: ["starts_on"])
         }
 
+        // `at` war ein Zeitpunkt. Für „von 7:30 bis 8:15 gelaufen" braucht es
+        // einen Zeitraum — und daraus leitet sich der Tageswert ab.
+        migrator.registerMigration("v4-event-end") { db in
+            try db.alter(table: "entry_event") { t in
+                t.add(column: "ends_at", .text)
+            }
+        }
+
         return migrator
     }
 }
