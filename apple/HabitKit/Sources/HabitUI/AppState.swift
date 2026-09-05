@@ -35,6 +35,7 @@ public final class AppState {
     public init(api: any HabitAPI, today: CalendarDate = CalendarDate.today()) {
         self.api = api
         self.today = today
+        self.overviewAnchor = today
         self.loadedFrom = today.adding(days: -370)
         self.loadedTo = today
     }
@@ -55,6 +56,7 @@ public final class AppState {
                 grouped[entry.habitId, default: [:]][entry.date] = entry
             }
             entries = grouped
+            refreshColorReference()
         } catch {
             errorMessage = String(describing: error)
         }
@@ -122,6 +124,108 @@ public final class AppState {
                                from: from, to: to, today: today)
     }
 
+    // MARK: - Gesamtübersicht
+
+    /// Woche, Monat oder Jahr.
+    public var overviewSpan: OverviewSpan = .year
+    /// Der Tag, um den herum der Ausschnitt liegt. Blättern verschiebt ihn.
+    public var overviewAnchor: CalendarDate
+
+    /// Der gezeigte Zeitraum.
+    ///
+    /// Die Kennzahlen darüber beziehen sich auf genau dieses Fenster — eine Zahl,
+    /// die einen anderen Zeitraum meint als das Bild darunter, wäre irreführend.
+    public var overviewRange: (from: CalendarDate, to: CalendarDate) {
+        overviewSpan.range(containing: overviewAnchor)
+    }
+
+    /// Ob es vorwärts noch etwas zu sehen gibt.
+    public var canStepOverviewForward: Bool { overviewRange.to < today }
+
+    public func stepOverview(by steps: Int) async {
+        overviewAnchor = overviewSpan.shift(overviewAnchor, by: steps)
+        await ensureOverviewLoaded()
+    }
+
+    public func resetOverviewToToday() async {
+        overviewAnchor = today
+        await ensureOverviewLoaded()
+    }
+
+    /// Holt Einträge nach, wenn der gewählte Ausschnitt außerhalb des bereits
+    /// geladenen Fensters liegt.
+    ///
+    /// Beim Blättern in weit zurückliegende Monate wäre die Ansicht sonst leer,
+    /// obwohl Daten vorhanden sind — ein Fehler, den man für „da war nichts“ hält.
+    public func ensureOverviewLoaded() async {
+        let range = overviewRange
+        guard range.from < loadedFrom || range.to > loadedTo else { return }
+        loadedFrom = min(loadedFrom, range.from)
+        loadedTo = max(loadedTo, range.to)
+        await reload()
+    }
+
+    /// Alle Habits je Tag zusammengefasst.
+    ///
+    /// Bewusst berechnet statt zwischengespeichert: rund 370 Tage mal eine
+    /// Handvoll Habits sind einige tausend Vergleiche und damit weit unter einer
+    /// Millisekunde. Ein Zwischenspeicher müsste bei jedem Abhaken, jeder
+    /// Ausnahme und jeder Zeitplanänderung verworfen werden — die Gelegenheit,
+    /// das einmal zu vergessen, kostet mehr als die Rechnung.
+    public var overviewSummaries: [CalendarDate: DaySummary] {
+        let range = overviewRange
+        return HabitCore.overview(habits: habits, entries: allEntries,
+                                  exceptions: exceptions,
+                                  from: range.from, to: range.to, today: today)
+    }
+
+    /// Bezugsgröße der Farbskala: die höchste Zahl an Erledigungen an einem Tag
+    /// der letzten zwölf Monate.
+    ///
+    /// Bewusst über den ganzen Zeitraum und nicht über den gezeigten Ausschnitt:
+    /// sonst bedeutete dasselbe Blau in der Wochenansicht etwas anderes als in
+    /// der Jahresansicht, und ein Blättern zurück färbte eine magere Woche
+    /// plötzlich kräftig ein.
+    public private(set) var colorReference: Int = 0
+
+    private func refreshColorReference() {
+        let from = today.weekStart.adding(days: -7 * 52)
+        let summaries = HabitCore.overview(habits: habits, entries: allEntries,
+                                           exceptions: exceptions,
+                                           from: from, to: today, today: today)
+        colorReference = summaries.values.map(\.completed).max() ?? 0
+    }
+
+    public var overviewStats: OverviewStats {
+        let range = overviewRange
+        return HabitCore.overviewStats(summaries: overviewSummaries,
+                                       from: range.from, to: range.to, today: today)
+    }
+
+    private var allEntries: [Entry] {
+        entries.values.flatMap(\.values)
+    }
+
+    /// Was an einem Tag anstand und was daraus wurde — für die Detailzeile
+    /// unter der Übersichts-Heatmap.
+    ///
+    /// Enthält, was an dem Tag verpflichtend war, und zusätzlich alles
+    /// Erledigte: ein freiwillig erledigter Wochen-Habit gehört ins Bild, ein
+    /// nicht erledigter nicht.
+    public func dayBreakdown(on date: CalendarDate) -> [(habit: Habit, status: DayStatus)] {
+        habits.compactMap { habit in
+            let dayStatus = status(habit, on: date)
+            guard dayStatus.isCompleted || habit.isRequired(on: date) else { return nil }
+            return (habit, dayStatus)
+        }
+        .sorted {
+            // Erledigtes zuerst, danach alphabetisch — die Liste soll die gute
+            // Nachricht oben haben.
+            if $0.status.isCompleted != $1.status.isCompleted { return $0.status.isCompleted }
+            return $0.habit.name < $1.habit.name
+        }
+    }
+
     public func trend(_ habit: Habit) -> Trend? {
         let list = Array(entries[habit.id]?.values ?? [:].values)
         return HabitCore.trend(for: habit, entries: list, exceptions: exceptions, today: today)
@@ -155,6 +259,8 @@ public final class AppState {
                                                    value: value, note: nil, source: .manual)
                 entries[habit.id, default: [:]][date] = saved
             }
+            // Ein neuer Tagesrekord verschiebt den Maßstab der Farbskala.
+            refreshColorReference()
         } catch {
             errorMessage = String(describing: error)
         }
@@ -210,6 +316,30 @@ public final class AppState {
             await reload()
         } catch {
             errorMessage = String(describing: error)
+        }
+    }
+
+    // MARK: - Sicherung
+
+    /// `habitIds == nil` sichert alles.
+    public func exportBackup(habitIds: Set<UUID>? = nil) async -> BackupFile? {
+        do {
+            return try await api.exportBackup(habitIds: habitIds,
+                                              generator: LocalHabitAPI.defaultGenerator)
+        } catch {
+            errorMessage = String(describing: error)
+            return nil
+        }
+    }
+
+    public func importBackup(_ file: BackupFile, mode: ImportMode) async -> ImportReport? {
+        do {
+            let report = try await api.importBackup(file, mode: mode)
+            await reload()
+            return report
+        } catch {
+            errorMessage = String(describing: error)
+            return nil
         }
     }
 

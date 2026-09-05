@@ -55,6 +55,12 @@ public protocol HabitAPI: Sendable {
     func stats(habitId: UUID, from: CalendarDate, to: CalendarDate) async throws -> HabitStats
     func trend(habitId: UUID) async throws -> Trend?
 
+    // Sicherung
+    /// `habitIds == nil` sichert den gesamten Bestand.
+    func exportBackup(habitIds: Set<UUID>?, generator: String) async throws -> BackupFile
+    @discardableResult
+    func importBackup(_ file: BackupFile, mode: ImportMode) async throws -> ImportReport
+
     // Einstellungen
     func backfillLimitDays() async throws -> Int
     func setBackfillLimitDays(_ days: Int) async throws

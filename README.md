@@ -41,7 +41,23 @@ nach dem Hinzufügen neuer Dateien `xcodegen generate` erneut ausführen.
 Die Datenbank liegt unter
 `~/Library/Application Support/HabitTracker/habits.sqlite`.
 
-## Drei Entscheidungen, die alles andere erklären
+## Sicherung
+
+„Sicherung → Sichern" schreibt eine JSON-Datei — den gesamten Bestand oder
+einzelne Habits samt Verlauf. Das Format steht als `BackupFile` in
+`spec/openapi.yaml`; der spätere Node-Server liest und schreibt dieselben
+Dateien über `GET /backup` und `POST /backup/import`.
+
+Beim Einspielen aktualisiert **Zusammenführen** eine vorhandene Zeile nur, wenn
+die Datei ein neueres `updatedAt` trägt — dieselbe Last-Write-Wins-Regel wie
+beim Sync. **Ersetzen** verwirft den bisherigen Bestand vollständig. Einträge
+werden dabei über `(habitId, date)` erkannt, nicht über ihre `id`: zwei Geräte,
+die denselben Tag abgehakt haben, meinen dieselbe Sache.
+
+Enthalten sind nur lebende Zeilen. Grabsteine gehören zum Sync-Protokoll, nicht
+zur Sicherung — die beschreibt den Bestand, nicht seine Geschichte.
+
+## Vier Entscheidungen, die alles andere erklären
 
 **Kalendertage statt Zeitstempel.** „Habe ich heute Sport gemacht?" ist eine
 Kalenderfrage. `CalendarDate` rechnet über Howard Hinnants
@@ -58,6 +74,12 @@ denselben Tag abhaken, meinen dasselbe.
 Vergangene Tage werden mit der damals gültigen Regel bewertet — sonst würde
 eine Zielerhöhung von 2 L auf 3 L rückwirkend alle erfüllten Tage als verfehlt
 erscheinen lassen.
+
+**Darstellungsregeln, die beide Clients treffen müssen, stehen in der Domäne.**
+Die Farbstufe eines Tages in der Übersichts-Heatmap (`intensityLevel`) ist keine
+Sache der Oberfläche: läge sie in der View, zeigten Mac und Browser für denselben
+Bestand verschiedene Bilder. In `HabitCore` steht *welche* Stufe, in der View nur,
+*wie* sie aussieht.
 
 ## Warum Fixtures und nicht geteilter Code
 

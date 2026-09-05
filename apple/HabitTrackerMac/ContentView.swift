@@ -12,8 +12,10 @@ struct ContentView: View {
 
     enum SidebarItem: Hashable {
         case today
+        case overview
         case habits
         case trash
+        case backup
         case habit(UUID)
     }
 
@@ -56,6 +58,8 @@ struct ContentView: View {
                 Label("Heute", systemImage: "sun.max")
                     .badge(openToday)
                     .tag(SidebarItem.today)
+                Label("Übersicht", systemImage: "square.grid.3x3")
+                    .tag(SidebarItem.overview)
                 Label("Alle Habits", systemImage: "list.bullet")
                     .tag(SidebarItem.habits)
             }
@@ -75,6 +79,8 @@ struct ContentView: View {
             }
 
             Section {
+                Label("Sicherung", systemImage: "externaldrive")
+                    .tag(SidebarItem.backup)
                 Label("Papierkorb", systemImage: "trash")
                     .tag(SidebarItem.trash)
             }
@@ -111,6 +117,12 @@ struct ContentView: View {
             } else {
                 TodayView(onEdit: { editing = .edit($0) })
             }
+
+        case .overview:
+            OverviewView()
+
+        case .backup:
+            BackupView()
 
         case .habits:
             HabitListView(

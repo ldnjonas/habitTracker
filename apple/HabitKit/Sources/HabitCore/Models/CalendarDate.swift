@@ -135,6 +135,19 @@ public struct CalendarDate: Hashable, Comparable, Sendable, Codable, CustomStrin
                      day: CalendarDate.daysInMonth(year: year, month: month))
     }
 
+    /// Denselben Tag `count` Monate später (oder früher).
+    ///
+    /// Fällt der Tag im Zielmonat aus, wird auf dessen letzten Tag gekürzt:
+    /// vom 31. Januar einen Monat weiter ist der 28. Februar, nicht der 3. März.
+    public func addingMonths(_ count: Int) -> CalendarDate {
+        let total = year * 12 + (month - 1) + count
+        let targetYear = Int((Double(total) / 12).rounded(.down))
+        let targetMonth = total - targetYear * 12 + 1
+        return CalendarDate(
+            uncheckedYear: targetYear, month: targetMonth,
+            day: min(day, CalendarDate.daysInMonth(year: targetYear, month: targetMonth)))
+    }
+
     // MARK: - Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms"
 
     static func daysFromCivil(year y: Int, month m: Int, day d: Int) -> Int {

@@ -662,6 +662,148 @@ paths:
         "201": { description: Eingelöst }
         "409": { description: Kein Guthaben }
 
+  # ─────────────────────────────── backup ─────────────────────────────
+  /backup:
+    get:
+      tags: [backup]
+      summary: Bestand als Sicherungsdatei ausgeben
+      description: |
+        Liefert dieselbe JSON-Datei, die die Mac-App über „Sicherung → Sichern"
+        schreibt. **Nur lebende Zeilen** — Grabsteine gehören zum
+        Sync-Protokoll (`/sync`), nicht zur Sicherung: die beschreibt den
+        Bestand, nicht seine Geschichte.
+
+        Ohne `habitIds` ist der Umfang `full`, sonst `habits`. Bei einer
+        Auswahl wandern nur die Tags mit, die diese Habits benutzen; das
+        Tages-Journal hängt an keinem Habit und bleibt dann ganz draußen.
+
+        Ein Datensatz kommt nur mit, wenn sein Habit ebenfalls in der Datei
+        steht — sonst fände er beim Einspielen keinen Bezugspunkt.
+      parameters:
+        - name: habitIds
+          in: query
+          description: Kommaliste. Fehlt sie, wird alles gesichert.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Sicherungsdatei
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupFile" }
+
+  /backup/import:
+    post:
+      tags: [backup]
+      summary: Sicherungsdatei einspielen
+      description: |
+        Läuft in **einer** Transaktion: entweder ist am Ende alles drin oder
+        nichts. Ein halb eingespieltes Backup wäre schlimmer als ein
+        fehlgeschlagenes.
+
+        `merge` aktualisiert eine vorhandene Zeile nur, wenn die Datei ein
+        neueres `updatedAt` trägt — dieselbe Last-Write-Wins-Regel wie beim
+        Sync. `replace` verwirft den bisherigen Bestand vollständig und
+        übernimmt die Datei unabhängig von den Zeitstempeln.
+
+        **Einträge werden über `(habitId, date)` erkannt, nicht über `id`.**
+        Zwei Geräte, die denselben Tag abgehakt haben, erzeugen verschiedene
+        `id`s für denselben Sachverhalt; ein id-basierter Abgleich liefe in die
+        Eindeutigkeitsbedingung. Die vorhandene `id` bleibt dabei bestehen.
+
+        Die `userId` aus der Datei wird verworfen und durch die des
+        angemeldeten Nutzers ersetzt — so lässt sich eine Sicherung in ein
+        anderes Konto einspielen.
+
+        Zeilen, deren Habit weder in der Datei noch im Bestand steht, werden
+        übersprungen und im Bericht als `orphanedRows` gemeldet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode, file]
+              properties:
+                mode: { $ref: "#/components/schemas/ImportMode" }
+                file: { $ref: "#/components/schemas/BackupFile" }
+      responses:
+        "200":
+          description: Eingespielt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportReport" }
+        "422":
+          description: |
+            Die Datei ist nicht einspielbar — unbekannte `formatVersion`,
+            ein Habit ohne Regel oder eine doppelte Habit-`id`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  problems:
+                    type: array
+                    items: { type: string }
+
+  # ────────────────────────────── overview ────────────────────────────
+  /stats/overview:
+    get:
+      tags: [insights]
+      summary: Alle Habits je Tag zusammengefasst
+      description: |
+        Grundlage der gesammelten Heatmap über den gesamten Bestand.
+
+        **Was in `scheduled` zählt**, ist die einzige interessante Entscheidung
+        hier: ein Habit zählt an einem Tag, wenn er dort *verpflichtend* war
+        **oder** wenn er *erfüllt* wurde. Ein `timesPerWeek`-Habit ist an jedem
+        Tag planbar, aber an keinem verpflichtend — zählte er täglich mit,
+        erschiene ein 3×/Woche-Ziel an vier von sieben Tagen als verpasst und
+        trübte die Übersicht dauerhaft ein. So geht ein an diesem Tag
+        erledigter Wochen-Habit in Zähler und Nenner ein, ein nicht erledigter
+        in keinen von beiden; `completed` kann `scheduled` nie übersteigen.
+
+        Pausierte und übersprungene Tage fallen für den jeweiligen Habit
+        heraus, eingefrorene bleiben im Nenner: ein Freeze rettet den Streak,
+        schönt aber nicht die Statistik.
+
+        Ein Tag ohne Plan hat `scheduled: 0` und ist damit ausdrücklich **nicht
+        null Prozent** — er hat kein Ergebnis.
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Tageswerte und Kennzahlen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:
+                    type: array
+                    items: { $ref: "#/components/schemas/DaySummary" }
+                  perfectDays: { type: integer }
+                  daysWithPlan: { type: integer }
+                  totalCompletions: { type: integer }
+                  perfectStreak:
+                    type: integer
+                    description: |
+                      Serie von Tagen, an denen alles Anstehende erledigt war.
+                      Tage ohne Plan unterbrechen sie nicht, und der laufende
+                      Tag beendet sie nicht, solange er noch offen ist.
+                  busiestDay:
+                    type: integer
+                    description: |
+                      Höchste Zahl an Erledigungen an einem Tag — Bezugsgröße
+                      der Farbskala. Die Clients bestimmen sie über die letzten
+                      zwölf Monate und nicht über den gezeigten Ausschnitt,
+                      damit dieselbe Farbe in Wochen- und Jahresansicht
+                      dasselbe bedeutet.
+
   # ──────────────────────────────── sync ──────────────────────────────
   /sync:
     get:
@@ -1058,3 +1200,109 @@ components:
         dayLogs: { type: array, items: { $ref: "#/components/schemas/DayLog" } }
         nextSeq: { type: integer, format: int64 }
         hasMore: { type: boolean }
+
+    DaySummary:
+      type: object
+      required: [date, completed, scheduled]
+      properties:
+        date: { $ref: "#/components/schemas/CalendarDate" }
+        completed: { type: integer }
+        scheduled:
+          type: integer
+          description: Verpflichtend an diesem Tag oder erfüllt. Siehe /stats/overview.
+
+    IntensityScale:
+      type: string
+      enum: [count, share]
+      description: |
+        Wonach sich die Sättigung eines Tages in der Heatmap richtet.
+        `count` skaliert an `busiestDay` (das GitHub-Vorbild), `share` am
+        Anteil des Tagespensums.
+
+        Die Einstufung gehört in die gemeinsame Domänenlogik, nicht in die
+        jeweilige Oberfläche — sonst zeigen Mac und Browser für denselben
+        Bestand verschiedene Bilder. Fünf Stufen, 0 bis 4:
+
+          count: 0 wenn completed == 0, sonst clamp(ceil(completed / busiestDay * 4), 1, 4)
+          share: 0 wenn share fehlt oder 0, sonst clamp(ceil(share * 4), 1, 4)
+
+        Die untere Klemme auf 1 ist Absicht: bei 20 Habits wäre eine einzelne
+        Erledigung rechnerisch Stufe 0,2 und der Tag sähe leer aus.
+
+    OverviewSpan:
+      type: string
+      enum: [week, month, year]
+      description: |
+        Woche und Monat rasten am Kalender ein (Montag–Sonntag, Erster–Letzter).
+        `year` sind die 53 Wochen, die auf die Ankerwoche enden — immer an einer
+        Wochengrenze, damit die sieben Zeilen der Heatmap aufgehen.
+
+    ImportMode:
+      type: string
+      enum: [merge, replace]
+
+    BackupFile:
+      type: object
+      required: [formatVersion, exportedAt, generator, scope]
+      properties:
+        formatVersion:
+          type: integer
+          description: |
+            Aktuell 1. Ein Leser weist eine höhere Version ab, statt zu raten.
+        exportedAt:
+          type: string
+          format: date-time
+          description: |
+            ISO 8601 mit **exakt drei Nachkommastellen** (`2026-09-05T08:00:00.000Z`),
+            wie `Date.toISOString()`. Die Millisekunden sind nicht Kosmetik:
+            `updatedAt` entscheidet beim Zusammenführen, welche Version gewinnt.
+            Der Bruchteil ist aus ganzzahligen Millisekunden zu **runden**, nicht
+            abzuschneiden — sonst wandert jeder Zeitstempel pro Export-Runde eine
+            Millisekunde zurück und zwei Sicherungen desselben unveränderten
+            Bestands sind nie byte-gleich.
+        generator:
+          type: string
+          example: HabitTracker/1.0 (macOS)
+        scope: { type: string, enum: [full, habits] }
+        habits:
+          type: array
+          items: { $ref: "#/components/schemas/Habit" }
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/Entry" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/EntryEvent" }
+        exceptions:
+          type: array
+          items: { $ref: "#/components/schemas/DayException" }
+        dayLogs:
+          type: array
+          items: { $ref: "#/components/schemas/DayLog" }
+
+    ImportReport:
+      type: object
+      properties:
+        mode: { $ref: "#/components/schemas/ImportMode" }
+        habits: { $ref: "#/components/schemas/ImportCounts" }
+        tags: { $ref: "#/components/schemas/ImportCounts" }
+        entries: { $ref: "#/components/schemas/ImportCounts" }
+        events: { $ref: "#/components/schemas/ImportCounts" }
+        exceptions: { $ref: "#/components/schemas/ImportCounts" }
+        dayLogs: { $ref: "#/components/schemas/ImportCounts" }
+        problems:
+          type: array
+          items: { type: string }
+          description: Nicht fatale Auffälligkeiten, die dem Nutzer anzuzeigen sind.
+
+    ImportCounts:
+      type: object
+      properties:
+        inserted: { type: integer }
+        updated: { type: integer }
+        skipped:
+          type: integer
+          description: Übersprungen, weil der vorhandene Datensatz neuer war.

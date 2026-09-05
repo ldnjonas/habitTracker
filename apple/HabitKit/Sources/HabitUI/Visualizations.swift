@@ -100,8 +100,12 @@ public struct HeatmapView: View {
                      : "")
                     .font(.system(size: 8))
                     .foregroundStyle(.secondary)
+                    // Erst den Text unzerbrechlich machen, dann rahmen: ein
+                    // `.fixedSize()` *nach* dem Rahmen fixiert diesen und lässt
+                    // den Text trotzdem umbrechen („Se/p" statt „Sep").
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(width: cell, alignment: .leading)
-                    .fixedSize()
             }
         }
         .clipped()
