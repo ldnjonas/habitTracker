@@ -41,29 +41,24 @@ struct ContentView: View {
             )
             .frame(minWidth: 480, minHeight: 620)
         }
-        // Eine Rückfrage für alle drei Stellen, an denen gelöscht werden kann —
-        // drei Kopien desselben Textes wären drei Gelegenheiten, ihn falsch zu
-        // pflegen.
-        .confirmationDialog(
-            "„\(state.habitPendingDeletion?.name ?? "")“ löschen?",
-            // Echte Zwei-Wege-Bindung statt `.constant`: schließt der Dialog
-            // auf anderem Weg, muss der Zustand mitgehen — sonst erschiene er
-            // sofort wieder.
-            isPresented: Binding(get: { state.habitPendingDeletion != nil },
-                                 set: { if !$0 { state.habitPendingDeletion = nil } }),
-            presenting: state.habitPendingDeletion
-        ) { habit in
-            // `habit` kommt aus `presenting` und überlebt das Schließen des
-            // Dialogs. Über `state.habitPendingDeletion` wäre er hier schon
-            // `nil`: SwiftUI setzt `isPresented` auf false, *bevor* die Aktion
-            // läuft, und der Setter oben räumt den Zustand ab — das Löschen
-            // liefe still ins Leere. Genau dafür gibt es `presenting`.
-            Button("Löschen", role: .destructive) {
-                Task { await state.delete(habit) }
-            }
-            Button("Abbrechen", role: .cancel) { }
-        } message: { _ in
-            Text("Der Habit und sein gesamter Verlauf liegen \(state.trashWindowDays) Tage im Papierkorb und lassen sich von dort zurückholen.")
+        // Eine Rückfrage für alle Stellen, an denen gelöscht werden kann —
+        // mehrere Kopien desselben Textes wären mehrere Gelegenheiten, ihn
+        // falsch zu pflegen.
+        //
+        // Als Blatt und nicht als `confirmationDialog`: nur so lässt sich das
+        // Symbol des Habits zeigen statt des App-Icons, das dort vom System
+        // kommt.
+        .sheet(item: $state.habitPendingDeletion) { habit in
+            // `habit` stammt aus der Bindung des Blatts und ist beim Auslösen
+            // gesetzt — anders als der Zustand, den das Schließen abräumt.
+            HabitDeleteConfirmation(
+                habit: habit,
+                trashWindowDays: state.trashWindowDays,
+                onCancel: { state.habitPendingDeletion = nil },
+                onDelete: {
+                    state.habitPendingDeletion = nil
+                    Task { await state.delete(habit) }
+                })
         }
         .alert("Fehler", isPresented: .constant(state.errorMessage != nil)) {
             Button("OK") { state.errorMessage = nil }
