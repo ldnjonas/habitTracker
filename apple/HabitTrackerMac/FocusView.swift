@@ -31,6 +31,11 @@ struct FocusView: View {
                                 habitNames: habitNames(active.run)) {
                         Task { await state.abandonFocus(active.run.id) }
                     }
+                    // Das Formular fehlt hier mit Absicht — aber wortlos
+                    // auszublenden hieße, den Nutzer raten zu lassen, warum.
+                    Label(blockedReason(active), systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     startCard
                 }
@@ -53,6 +58,19 @@ struct FocusView: View {
         } message: { run in
             Text("„\(run.displayTitle)“ vom \(run.startsOn.shortLabel) verschwindet dauerhaft.")
         }
+    }
+
+    /// Warum gerade kein neuer Lauf beginnen kann.
+    ///
+    /// `shortLabel` bringt seinen Punkt selbst mit — hier keinen zweiten setzen.
+    private func blockedReason(_ active: FocusProgress) -> String {
+        if active.run.startsOn > state.today {
+            return "„\(active.run.displayTitle)“ beginnt erst am \(active.run.startsOn.shortLabel) "
+                + "Einen neuen kannst du starten, sobald er vorbei ist — oder wenn du ihn oben abbrichst."
+        }
+        return "Es läuft bereits ein Fokus bis zum \(active.run.endsOn.shortLabel) "
+            + "Einen neuen kannst du starten, sobald er vorbei ist — oder wenn du ihn oben abbrichst. "
+            + "Ein gerissener Lauf blockiert nicht."
     }
 
     // MARK: - Starten
