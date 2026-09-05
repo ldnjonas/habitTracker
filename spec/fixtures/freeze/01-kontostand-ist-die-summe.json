@@ -1,0 +1,22 @@
+{
+  "name": "Der Kontostand ist die Summe der Buchungen",
+  "today": "2026-09-04",
+  "runs": [],
+  "ledger": [
+    {
+      "amount": 1,
+      "reason": "focusCompleted"
+    },
+    {
+      "amount": 1,
+      "reason": "focusCompleted"
+    },
+    {
+      "amount": -1,
+      "reason": "applied"
+    }
+  ],
+  "expected": {
+    "balance": 1
+  }
+}

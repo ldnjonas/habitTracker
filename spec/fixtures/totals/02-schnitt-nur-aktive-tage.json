@@ -1,0 +1,43 @@
+{
+  "name": "Der Schnitt zählt nur Tage mit Aktivität — sonst sänke er mit dem Zeitraum",
+  "habit": {
+    "key": "lesen",
+    "name": "Lesen",
+    "kind": "quantity",
+    "tracksTime": true,
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-30"
+  },
+  "entries": [
+    {
+      "date": "2026-09-01",
+      "value": 60
+    },
+    {
+      "date": "2026-09-03",
+      "value": 20
+    }
+  ],
+  "events": [],
+  "expected": {
+    "total": 80,
+    "averagePerActiveDay": 40,
+    "dayCount": 30,
+    "activeDays": 2
+  }
+}

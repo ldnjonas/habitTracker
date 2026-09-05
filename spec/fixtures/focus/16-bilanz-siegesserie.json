@@ -1,0 +1,36 @@
+{
+  "name": "Bilanz: die Siegesserie zählt nur unmittelbar aufeinander folgende Erfolge",
+  "today": "2026-09-04",
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "outcomes": [
+    {
+      "code": "completed"
+    },
+    {
+      "code": "completed"
+    },
+    {
+      "code": "failed",
+      "on": "2026-09-04"
+    },
+    {
+      "code": "completed"
+    },
+    {
+      "code": "completed"
+    },
+    {
+      "code": "completed"
+    }
+  ],
+  "expected": {
+    "record": {
+      "longestWinStreak": 3,
+      "completed": 5,
+      "failed": 1,
+      "finished": 6
+    }
+  }
+}

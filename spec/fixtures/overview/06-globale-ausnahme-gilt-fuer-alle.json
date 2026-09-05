@@ -1,0 +1,54 @@
+{
+  "name": "Eine globale Ausnahme gilt für alle Habits",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-03",
+    "to": "2026-09-03"
+  },
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    },
+    {
+      "key": "lesen",
+      "name": "Lesen",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [],
+  "exceptions": [
+    {
+      "habit": null,
+      "date": "2026-09-03",
+      "kind": "paused"
+    }
+  ],
+  "expected": {
+    "days": {
+      "2026-09-03": {
+        "completed": 0,
+        "scheduled": 0,
+        "share": null,
+        "isPerfect": false
+      }
+    }
+  }
+}

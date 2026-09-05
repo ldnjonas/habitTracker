@@ -1,0 +1,98 @@
+{
+  "name": "Ausschnitt: Woche und Monat rasten ein, das Jahr sind 53 Wochen",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-04",
+    "to": "2026-09-04"
+  },
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "expected": {
+    "spans": [
+      {
+        "span": "week",
+        "anchor": "2026-09-04",
+        "range": {
+          "from": "2026-08-31",
+          "to": "2026-09-06"
+        },
+        "maximumDays": 7
+      },
+      {
+        "span": "month",
+        "anchor": "2026-02-17",
+        "range": {
+          "from": "2026-02-01",
+          "to": "2026-02-28"
+        },
+        "maximumDays": 31
+      },
+      {
+        "span": "month",
+        "anchor": "2028-02-17",
+        "range": {
+          "from": "2028-02-01",
+          "to": "2028-02-29"
+        }
+      },
+      {
+        "span": "year",
+        "anchor": "2026-09-04",
+        "range": {
+          "from": "2025-09-01",
+          "to": "2026-09-06"
+        },
+        "maximumDays": 371
+      },
+      {
+        "span": "week",
+        "anchor": "2026-09-04",
+        "shiftBy": -1,
+        "shifted": "2026-08-28"
+      },
+      {
+        "span": "week",
+        "anchor": "2026-09-04",
+        "shiftBy": 2,
+        "shifted": "2026-09-18"
+      },
+      {
+        "span": "month",
+        "anchor": "2026-09-04",
+        "shiftBy": -1,
+        "shifted": "2026-08-04"
+      },
+      {
+        "span": "year",
+        "anchor": "2026-09-04",
+        "shiftBy": -1,
+        "shifted": "2025-09-04"
+      },
+      {
+        "span": "month",
+        "anchor": "2026-01-31",
+        "shiftBy": 1,
+        "shifted": "2026-02-28"
+      },
+      {
+        "span": "month",
+        "anchor": "2026-03-31",
+        "shiftBy": -1,
+        "shifted": "2026-02-28"
+      },
+      {
+        "span": "month",
+        "anchor": "2026-01-15",
+        "shiftBy": -1,
+        "shifted": "2025-12-15"
+      },
+      {
+        "span": "month",
+        "anchor": "2026-12-15",
+        "shiftBy": 1,
+        "shifted": "2027-01-15"
+      }
+    ]
+  }
+}

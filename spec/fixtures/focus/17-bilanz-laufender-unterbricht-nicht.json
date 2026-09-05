@@ -1,0 +1,27 @@
+{
+  "name": "Bilanz: ein laufender Lauf unterbricht die Serie nicht",
+  "today": "2026-09-04",
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "outcomes": [
+    {
+      "code": "completed"
+    },
+    {
+      "code": "running",
+      "dayNumber": 1,
+      "totalDays": 7
+    },
+    {
+      "code": "completed"
+    }
+  ],
+  "expected": {
+    "record": {
+      "longestWinStreak": 2,
+      "completed": 2,
+      "finished": 2
+    }
+  }
+}

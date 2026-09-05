@@ -1,0 +1,67 @@
+{
+  "name": "Der laufende Tag bricht die Serie perfekter Tage nicht",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-30",
+    "to": "2026-09-04"
+  },
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-30",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-08-31",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "days": {
+      "2026-08-30": {
+        "completed": 0,
+        "scheduled": 1,
+        "isPerfect": false
+      },
+      "2026-09-04": {
+        "completed": 0,
+        "scheduled": 1,
+        "isPerfect": false
+      }
+    },
+    "stats": {
+      "perfectDays": 4,
+      "daysWithPlan": 6,
+      "totalCompletions": 4,
+      "perfectStreak": 4,
+      "busiestDay": 1
+    }
+  }
+}

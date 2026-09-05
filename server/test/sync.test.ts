@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { Db } from "../src/db.ts";
-import { leseDelta, schreibeDelta, type Delta } from "../src/sync.ts";
+import { leseDelta, schreibeDelta } from "../src/sync.ts";
 import { baueServer } from "../src/index.ts";
 
 const TOKEN = "t".repeat(32);

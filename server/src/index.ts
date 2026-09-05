@@ -3,6 +3,14 @@ import { Db } from "./db.ts";
 import { leseToken, pruefeToken } from "./auth.ts";
 import { leseDelta, schreibeDelta, type Delta } from "./sync.ts";
 
+/// Ein Fehler mit Statuscode — Fastify liest `statusCode` von jedem Error.
+///
+/// Ohne das hier wäre eine falsche Anfrage eine 500: der Server hätte einen
+/// Fehler gemeldet, obwohl der Client einen gemacht hat.
+function fehler(status: number, nachricht: string): Error {
+  return Object.assign(new Error(nachricht), { statusCode: status });
+}
+
 export function baueServer(db: Db, token: string) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
 
@@ -17,8 +25,7 @@ export function baueServer(db: Db, token: string) {
       const since = Number(abfrage.since ?? 0);
       const limit = Math.min(Number(abfrage.limit ?? 500), 2000);
       if (!Number.isFinite(since) || since < 0) {
-        throw app.httpErrors?.badRequest?.("since muss eine Zahl ≥ 0 sein")
-          ?? new Error("since muss eine Zahl ≥ 0 sein");
+        throw fehler(400, "since muss eine Zahl ≥ 0 sein");
       }
       return leseDelta(db, since, limit);
     });

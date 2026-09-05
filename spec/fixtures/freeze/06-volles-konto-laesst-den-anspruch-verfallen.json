@@ -1,0 +1,64 @@
+{
+  "name": "Bei vollem Konto verfällt der Anspruch — er wird nicht aufgespart",
+  "today": "2026-09-04",
+  "runs": [
+    {
+      "key": "lauf0",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-08-07",
+      "outcome": {
+        "code": "completed"
+      }
+    },
+    {
+      "key": "lauf1",
+      "startsOn": "2026-08-11",
+      "endsOn": "2026-08-17",
+      "outcome": {
+        "code": "completed"
+      }
+    },
+    {
+      "key": "lauf2",
+      "startsOn": "2026-08-21",
+      "endsOn": "2026-08-27",
+      "outcome": {
+        "code": "completed"
+      }
+    },
+    {
+      "key": "lauf3",
+      "startsOn": "2026-08-31",
+      "endsOn": "2026-09-06",
+      "outcome": {
+        "code": "completed"
+      }
+    },
+    {
+      "key": "lauf4",
+      "startsOn": "2026-09-10",
+      "endsOn": "2026-09-16",
+      "outcome": {
+        "code": "completed"
+      }
+    }
+  ],
+  "ledger": [
+    {
+      "amount": 1,
+      "reason": "granted"
+    },
+    {
+      "amount": 1,
+      "reason": "granted"
+    },
+    {
+      "amount": 1,
+      "reason": "granted"
+    }
+  ],
+  "expected": {
+    "balance": 3,
+    "pendingAwards": []
+  }
+}

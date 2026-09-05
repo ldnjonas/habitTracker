@@ -1,0 +1,60 @@
+{
+  "name": "Die Zufallshürde sinkt mit der Datenmenge, die Stärke hängt am Betrag",
+  "today": "2026-09-30",
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-01"
+  },
+  "habits": [],
+  "entries": [],
+  "dayLogs": [],
+  "exceptions": [],
+  "expected": {
+    "required": [
+      {
+        "days": 30,
+        "value": 0.493,
+        "tolerance": 0.01
+      },
+      {
+        "days": 100,
+        "value": 0.29,
+        "tolerance": 0.01
+      },
+      {
+        "days": 5000,
+        "value": 0.2,
+        "tolerance": 1e-12
+      }
+    ],
+    "requiredIsMonotone": {
+      "from": 15,
+      "to": 300,
+      "step": 5
+    },
+    "strengths": [
+      {
+        "coefficient": 0.1,
+        "strength": null
+      },
+      {
+        "coefficient": 0.3,
+        "strength": "weak"
+      },
+      {
+        "coefficient": 0.5,
+        "strength": "moderate"
+      },
+      {
+        "coefficient": 0.8,
+        "strength": "strong"
+      },
+      {
+        "coefficient": -0.8,
+        "strength": "strong"
+      }
+    ],
+    "minimumDays": 14,
+    "minimumPerGroup": 5
+  }
+}

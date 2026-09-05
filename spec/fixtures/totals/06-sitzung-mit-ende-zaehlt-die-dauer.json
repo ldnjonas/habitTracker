@@ -1,0 +1,67 @@
+{
+  "name": "Eine Sitzung mit Ende zählt ihre Dauer, ein Ende vor dem Start ist ungültig",
+  "habit": {
+    "key": "lesen",
+    "name": "Lesen",
+    "kind": "quantity",
+    "tracksTime": true,
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-30"
+  },
+  "entries": [],
+  "events": [
+    {
+      "date": "2026-09-03",
+      "at": "2026-09-03T07:00:00.000Z",
+      "endsAt": "2026-09-03T08:30:00.000Z",
+      "value": 5
+    },
+    {
+      "date": "2026-09-04",
+      "at": "2026-09-04T09:00:00.000Z",
+      "value": 25
+    },
+    {
+      "date": "2026-09-05",
+      "at": "2026-09-05T09:00:00.000Z",
+      "endsAt": "2026-09-05T08:00:00.000Z",
+      "value": 10
+    }
+  ],
+  "expected": {
+    "sessionCount": 3,
+    "events": [
+      {
+        "date": "2026-09-03",
+        "durationMinutes": 90,
+        "effectiveValue": 90,
+        "hasValidInterval": true
+      },
+      {
+        "date": "2026-09-04",
+        "durationMinutes": null,
+        "effectiveValue": 25,
+        "hasValidInterval": true
+      },
+      {
+        "date": "2026-09-05",
+        "hasValidInterval": false
+      }
+    ]
+  }
+}

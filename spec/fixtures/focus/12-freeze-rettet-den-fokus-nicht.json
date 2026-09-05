@@ -1,0 +1,46 @@
+{
+  "name": "Ein Freeze rettet den Streak, aber nicht den Fokus — er ist das strengere Versprechen",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "kind": "frozen"
+    }
+  ],
+  "run": {
+    "startsOn": "2026-09-01",
+    "endsOn": "2026-09-03"
+  },
+  "expected": {
+    "outcome": "failed",
+    "on": "2026-09-02"
+  }
+}

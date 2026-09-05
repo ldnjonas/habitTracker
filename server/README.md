@@ -26,8 +26,13 @@ fällt niemandem als Problem auf.
 | `LOG_LEVEL` | `info` | |
 
 ```bash
-npm test     # 12 Tests, ohne Netz und ohne Datei
+npm test     # Typprüfung, dann 90 Tests — ohne Netz und ohne Datei
 ```
+
+`npm test` prüft zuerst die Typen und führt dann die Tests aus. Der
+Typprüfer ist die einzige Entwicklungs-Abhängigkeit: Node entfernt Typen beim
+Ausführen, ohne sie anzusehen — ungeprüft wäre jede Typangabe ein Kommentar,
+den nie jemand liest. Ausgeliefert wird trotzdem nichts Gebautes.
 
 ## Warum SQLite und nicht Postgres
 
@@ -84,12 +89,27 @@ Grabstein und nimmt am Last-Write-Wins nicht teil.
 schlimmer als ein abgelehntes: der Client hielte seinen Cursor für weiter, als
 er ist, und die fehlenden Zeilen kämen nie wieder.
 
+## Die Domäne in `src/domain/`
+
+Eine Portierung von `apple/HabitKit/Sources/HabitCore/`, Datei für Datei mit
+denselben Namen — ein Vergleich der beiden soll ein Diff bleiben und keine
+Suchaufgabe. Sie rechnet Streaks, Quoten, Übersicht, Fokus, Summen und
+Zusammenhänge; der Abgleich in `sync.ts` benutzt nichts davon.
+
+**Der Preis ist doppelte Logik**, und dagegen hilft nur der geteilte Vertrag:
+`spec/fixtures/` beschreibt Fälle samt Erwartung, und **beide Seiten rechnen
+dieselben Dateien nach**. Weicht eine Zahl ab, schlägt eine Seite fehl — statt
+dass Mac und Browser stillschweigend Verschiedenes anzeigen.
+
+Drei Abweichungen von Swift sind bewusst und stehen in den jeweiligen Dateien:
+ein Kalendertag ist die ISO-Zeichenkette selbst, jede ganzzahlige Division ist
+`Math.trunc`, und Swifts `enum` mit assoziierten Werten wird zur unterschiedenen
+Vereinigung über `code`.
+
 ## Was noch fehlt
 
-- **Die SyncEngine im Swift-Package.** Ohne sie redet noch niemand mit diesem
-  Server; `apple/HabitKit/Sources/HabitSync/` gibt es nicht.
 - **Die REST-Ressourcen** aus `spec/openapi.yaml` (`/habits`, `/entries`, …).
-  Sie sind für die WebApp gedacht und brauchen teils Domänenlogik, die erst nach
-  TypeScript portiert werden muss.
+  Die Domänenlogik dafür steht jetzt bereit; was fehlt, sind die Endpunkte und
+  die Invarianten des Servers.
 - **Mehrbenutzerbetrieb.** `user_id` steht in jeder Tabelle, aber v1 prüft nur
   ein statisches Token und trennt nichts. Der Login-Flow steht in der Spec.

@@ -1,0 +1,31 @@
+{
+  "name": "Ein Fokus ohne einen einzigen geplanten Tag gilt als geschafft — nichts zu tun heißt vollständig",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-09-10",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [],
+  "exceptions": [],
+  "run": {
+    "startsOn": "2026-09-01",
+    "endsOn": "2026-09-03"
+  },
+  "expected": {
+    "outcome": "completed",
+    "perfectDays": 0,
+    "plannedDays": 0,
+    "fraction": 1.0
+  }
+}

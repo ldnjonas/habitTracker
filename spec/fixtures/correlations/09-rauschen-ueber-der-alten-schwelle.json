@@ -1,0 +1,191 @@
+{
+  "name": "Rauschen knapp über der alten Schwelle von 0,2 wird nicht mehr gemeldet",
+  "today": "2026-09-30",
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-20"
+  },
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-04",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-05",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-06",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-07",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-08",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-09",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-10",
+      "value": 1
+    }
+  ],
+  "dayLogs": [
+    {
+      "date": "2026-09-01",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-02",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-03",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-04",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-05",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-06",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-07",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-08",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-09",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-10",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-11",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-12",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-13",
+      "sleepHours": 8.0
+    },
+    {
+      "date": "2026-09-14",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-15",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-16",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-17",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-18",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-19",
+      "sleepHours": 6.0
+    },
+    {
+      "date": "2026-09-20",
+      "sleepHours": 6.0
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "count": 0,
+    "pearson": [
+      {
+        "completed": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          6.0,
+          6.0,
+          6.0,
+          6.0
+        ],
+        "missed": [
+          8.0,
+          8.0,
+          8.0,
+          6.0,
+          6.0,
+          6.0,
+          6.0,
+          6.0,
+          6.0,
+          6.0
+        ],
+        "above": 0.2,
+        "belowRequiredForDays": 20
+      }
+    ]
+  }
+}

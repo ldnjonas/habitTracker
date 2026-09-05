@@ -9,13 +9,13 @@ import assert from "node:assert/strict";
 import type { CalendarDate } from "../src/domain/calendar.ts";
 import { requireDate } from "../src/domain/calendar.ts";
 import type { DayException, Entry, ExceptionKind } from "../src/domain/entry.ts";
-import type { Habit, HabitKind } from "../src/domain/habit.ts";
-import { LOCAL_USER_ID, sortRules } from "../src/domain/habit.ts";
+import type { HabitKind } from "../src/domain/habit.ts";
 import type { HabitRule } from "../src/domain/schedule.ts";
 import { type StreakUnit, stats } from "../src/domain/stats.ts";
 import { trend } from "../src/domain/trend.ts";
-import type { Timestamp } from "../src/domain/timestamp.ts";
-import { loadFixtures } from "./fixtures.ts";
+import {
+  buildEntry, buildException, buildHabit, fixtureHabitId, loadFixtures,
+} from "./fixtures.ts";
 
 type Fixture = {
   name: string;
@@ -47,52 +47,14 @@ type Fixture = {
 };
 
 /// Feste ID, damit Einträge und Habit zueinander finden.
-const HABIT_ID = "00000000-0000-0000-0000-0000000000A1";
-/// Die Zeitstempel spielen in dieser Auswertung keine Rolle — die Domäne
-/// rechnet mit Kalendertagen. Ein fester Wert hält die Fixtures frei davon.
-const EPOCHE = "1970-01-01T00:00:00.000Z" as Timestamp;
-
-function buildHabit(f: Fixture): Habit {
-  return sortRules({
-    id: HABIT_ID,
-    userId: LOCAL_USER_ID,
-    name: f.name,
-    kind: f.habit.kind,
-    rules: f.habit.rules,
-    colorHex: "#4F8DF7",
-    symbol: "checkmark.circle",
-    sortOrder: 0,
-    tagIds: [],
-    tracksTime: false,
-    startsOn: f.habit.startsOn ?? null,
-    endsOn: f.habit.endsOn ?? null,
-    archivedOn: f.habit.archivedOn ?? null,
-    createdAt: EPOCHE,
-    updatedAt: EPOCHE,
-  });
-}
+const HABIT_ID = fixtureHabitId(0);
 
 function buildEntries(f: Fixture): Entry[] {
-  return f.entries.map((e, i) => ({
-    id: `entry-${i}`,
-    habitId: HABIT_ID,
-    date: e.date,
-    value: e.value,
-    source: "manual",
-    createdAt: EPOCHE,
-    updatedAt: EPOCHE,
-  }));
+  return f.entries.map((e, i) => buildEntry(HABIT_ID, e.date, e.value, i));
 }
 
 function buildExceptions(f: Fixture): DayException[] {
-  return f.exceptions.map((x, i) => ({
-    id: `exception-${i}`,
-    habitId: null,
-    date: x.date,
-    kind: x.kind,
-    createdAt: EPOCHE,
-    updatedAt: EPOCHE,
-  }));
+  return f.exceptions.map((x, i) => buildException(null, x.date, x.kind, i));
 }
 
 const fixtures = loadFixtures<Fixture>("stats");
@@ -103,7 +65,7 @@ test("spec/fixtures/stats liegt am erwarteten Ort und ist nicht leer", () => {
 
 for (const { file, fixture } of fixtures) {
   test(`${file} — ${fixture.name}`, () => {
-    const habit = buildHabit(fixture);
+    const habit = buildHabit(fixture.habit, HABIT_ID, fixture.name);
     const entries = buildEntries(fixture);
     const exceptions = buildExceptions(fixture);
     const result = stats(

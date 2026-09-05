@@ -1,0 +1,45 @@
+{
+  "name": "Nur ein vergangener, verpasster Tag lässt sich einfrieren",
+  "today": "2026-09-04",
+  "runs": [],
+  "ledger": [],
+  "expected": {
+    "freezable": [
+      {
+        "status": "missed",
+        "date": "2026-09-03",
+        "can": true
+      },
+      {
+        "status": "completed",
+        "date": "2026-09-03",
+        "can": false
+      },
+      {
+        "status": "notScheduled",
+        "date": "2026-09-03",
+        "can": false
+      },
+      {
+        "status": "frozen",
+        "date": "2026-09-03",
+        "can": false
+      },
+      {
+        "status": "paused",
+        "date": "2026-09-03",
+        "can": false
+      },
+      {
+        "status": "missed",
+        "date": "2026-09-04",
+        "can": false
+      },
+      {
+        "status": "missed",
+        "date": "2026-09-05",
+        "can": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Ein leeres Konto steht auf null",
+  "today": "2026-09-04",
+  "runs": [],
+  "ledger": [],
+  "expected": {
+    "balance": 0,
+    "pendingAwards": []
+  }
+}

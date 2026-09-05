@@ -149,10 +149,14 @@ enum FixtureFiles {
 
 enum FixtureError: Error, CustomStringConvertible {
     case undecodable(String, any Error)
+    case unknownHabit(String)
+    case unknownOutcome(String)
 
     var description: String {
         switch self {
         case .undecodable(let file, let error): "\(file): \(error)"
+        case .unknownHabit(let key): "Unbekannter Habit-Schlüssel: \(key)"
+        case .unknownOutcome(let code): "Unbekanntes Fokus-Ergebnis: \(code)"
         }
     }
 }

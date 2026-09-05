@@ -1,0 +1,57 @@
+{
+  "name": "Sitzungen eines Tages kommen nach Startzeit sortiert zurück",
+  "habit": {
+    "key": "lesen",
+    "name": "Lesen",
+    "kind": "quantity",
+    "tracksTime": true,
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-30"
+  },
+  "entries": [],
+  "events": [
+    {
+      "date": "2026-09-03",
+      "at": "2026-09-03T20:00:00.000Z",
+      "endsAt": "2026-09-03T21:00:00.000Z",
+      "value": 60
+    },
+    {
+      "date": "2026-09-03",
+      "at": "2026-09-03T07:00:00.000Z",
+      "endsAt": "2026-09-03T08:00:00.000Z",
+      "value": 60
+    },
+    {
+      "date": "2026-09-02",
+      "at": "2026-09-02T09:00:00.000Z",
+      "value": 30
+    }
+  ],
+  "expected": {
+    "sessionCount": 3,
+    "sessions": {
+      "date": "2026-09-03",
+      "count": 2,
+      "starts": [
+        "2026-09-03T07:00:00.000Z",
+        "2026-09-03T20:00:00.000Z"
+      ]
+    }
+  }
+}

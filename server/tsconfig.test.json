@@ -1,0 +1,6 @@
+{
+  "// Zweck": "Dieselbe Prüfung für die Tests, nur ohne `noUncheckedIndexedAccess`: dort steht `delta.habits[0].name`, und ein falscher Index lässt den Test ohnehin scheitern. In `src/` ist dieselbe Zeile ein Absturz zur Laufzeit — deshalb bleibt die Regel dort scharf.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noUncheckedIndexedAccess": false },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

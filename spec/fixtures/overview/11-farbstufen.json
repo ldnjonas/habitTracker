@@ -1,0 +1,120 @@
+{
+  "name": "Farbstufen: 0 bis 4, und eine Erledigung ist nie unsichtbar",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-04",
+    "to": "2026-09-04"
+  },
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "expected": {
+    "levels": [
+      {
+        "completed": 0,
+        "scheduled": 3,
+        "scale": "count",
+        "busiestDay": 5,
+        "level": 0
+      },
+      {
+        "completed": 0,
+        "scheduled": 3,
+        "scale": "share",
+        "busiestDay": 5,
+        "level": 0
+      },
+      {
+        "completed": 0,
+        "scheduled": 0,
+        "scale": "share",
+        "busiestDay": 5,
+        "level": 0
+      },
+      {
+        "completed": 1,
+        "scheduled": 8,
+        "scale": "count",
+        "busiestDay": 8,
+        "level": 1
+      },
+      {
+        "completed": 4,
+        "scheduled": 8,
+        "scale": "count",
+        "busiestDay": 8,
+        "level": 2
+      },
+      {
+        "completed": 6,
+        "scheduled": 8,
+        "scale": "count",
+        "busiestDay": 8,
+        "level": 3
+      },
+      {
+        "completed": 8,
+        "scheduled": 8,
+        "scale": "count",
+        "busiestDay": 8,
+        "level": 4
+      },
+      {
+        "completed": 1,
+        "scheduled": 20,
+        "scale": "count",
+        "busiestDay": 20,
+        "level": 1
+      },
+      {
+        "completed": 1,
+        "scheduled": 1,
+        "scale": "share",
+        "busiestDay": 8,
+        "level": 4
+      },
+      {
+        "completed": 2,
+        "scheduled": 8,
+        "scale": "share",
+        "busiestDay": 8,
+        "level": 1
+      },
+      {
+        "completed": 4,
+        "scheduled": 8,
+        "scale": "share",
+        "busiestDay": 8,
+        "level": 2
+      },
+      {
+        "completed": 8,
+        "scheduled": 8,
+        "scale": "share",
+        "busiestDay": 8,
+        "level": 4
+      },
+      {
+        "completed": 1,
+        "scheduled": 1,
+        "scale": "count",
+        "busiestDay": 8,
+        "level": 1
+      },
+      {
+        "completed": 9,
+        "scheduled": 9,
+        "scale": "count",
+        "busiestDay": 2,
+        "level": 4
+      },
+      {
+        "completed": 3,
+        "scheduled": 3,
+        "scale": "count",
+        "busiestDay": 0,
+        "level": 0
+      }
+    ]
+  }
+}

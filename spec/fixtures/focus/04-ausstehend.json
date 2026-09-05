@@ -1,0 +1,31 @@
+{
+  "name": "Ein Fokus, der erst beginnt, steht auf ausstehend",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [],
+  "exceptions": [],
+  "run": {
+    "startsOn": "2026-09-07",
+    "endsOn": "2026-09-13"
+  },
+  "expected": {
+    "outcome": "upcoming",
+    "elapsedDays": 0,
+    "perfectDays": 0,
+    "plannedDays": 0
+  }
+}

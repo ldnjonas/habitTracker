@@ -1,0 +1,42 @@
+{
+  "name": "Ein Tag ohne Plan hat kein Ergebnis, nicht null Prozent",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-08-29",
+    "to": "2026-08-29"
+  },
+  "habits": [
+    {
+      "key": "vokabeln",
+      "name": "Vokabeln",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "weekdays",
+            "days": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [],
+  "exceptions": [],
+  "expected": {
+    "days": {
+      "2026-08-29": {
+        "completed": 0,
+        "scheduled": 0,
+        "share": null,
+        "isPerfect": false
+      }
+    }
+  }
+}

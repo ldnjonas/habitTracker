@@ -1,0 +1,155 @@
+{
+  "name": "Ein negativer Zusammenhang wird ebenso gefunden",
+  "today": "2026-09-30",
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-18"
+  },
+  "habits": [
+    {
+      "key": "social",
+      "name": "Social Media",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "social",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-04",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-05",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-06",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-07",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-08",
+      "value": 1
+    },
+    {
+      "habit": "social",
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "dayLogs": [
+    {
+      "date": "2026-09-01",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-02",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-03",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-04",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-05",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-06",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-07",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-08",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-09",
+      "sleepHours": 5.5
+    },
+    {
+      "date": "2026-09-10",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-11",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-12",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-13",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-14",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-15",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-16",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-17",
+      "sleepHours": 7.5
+    },
+    {
+      "date": "2026-09-18",
+      "sleepHours": 7.5
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "findings": [
+      {
+        "habit": "social",
+        "metric": "sleepHours",
+        "coefficientBelow": -0.9,
+        "difference": -2.0
+      }
+    ]
+  }
+}

@@ -15,7 +15,7 @@ public enum JournalMetric: String, CaseIterable, Codable, Sendable, Hashable {
 }
 
 /// Wie deutlich ein Zusammenhang ist.
-public enum CorrelationStrength: String, Sendable, Hashable {
+public enum CorrelationStrength: String, Codable, Sendable, Hashable {
     case weak, moderate, strong
 
     /// Übliche Schwellen auf dem Betrag von `r`. Unter 0,2 wird gar nichts

@@ -1,0 +1,51 @@
+{
+  "name": "Fremde Habits, gelöschte Zeilen und Tage außerhalb bleiben draußen",
+  "habit": {
+    "key": "lesen",
+    "name": "Lesen",
+    "kind": "quantity",
+    "tracksTime": true,
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-30"
+  },
+  "entries": [
+    {
+      "date": "2026-09-01",
+      "value": 10
+    },
+    {
+      "date": "2026-09-01",
+      "value": 99,
+      "foreign": true
+    },
+    {
+      "date": "2026-09-02",
+      "value": 99,
+      "deleted": true
+    },
+    {
+      "date": "2026-08-01",
+      "value": 99
+    }
+  ],
+  "events": [],
+  "expected": {
+    "total": 10,
+    "activeDays": 1
+  }
+}

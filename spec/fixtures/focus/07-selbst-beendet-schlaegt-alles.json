@@ -1,0 +1,41 @@
+{
+  "name": "Selbst beendet schlägt jedes andere Ergebnis — auch einen rechnerisch heilen Lauf",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "run": {
+    "startsOn": "2026-09-02",
+    "endsOn": "2026-09-08",
+    "abandonedOn": "2026-09-03"
+  },
+  "expected": {
+    "outcome": "abandoned",
+    "on": "2026-09-03"
+  }
+}

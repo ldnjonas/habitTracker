@@ -1,0 +1,25 @@
+{
+  "name": "Derselbe Lauf zahlt nicht zweimal ein — evaluate rechnet bei jedem Aufruf neu",
+  "today": "2026-09-04",
+  "runs": [
+    {
+      "key": "lauf",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-08-07",
+      "outcome": {
+        "code": "completed"
+      }
+    }
+  ],
+  "ledger": [
+    {
+      "amount": 1,
+      "reason": "focusCompleted",
+      "focusRun": "lauf"
+    }
+  ],
+  "expected": {
+    "balance": 1,
+    "pendingAwards": []
+  }
+}

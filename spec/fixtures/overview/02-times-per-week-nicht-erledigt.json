@@ -1,0 +1,55 @@
+{
+  "name": "Ein nicht erledigter timesPerWeek-Habit bläht den Nenner nicht auf",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-03",
+    "to": "2026-09-03"
+  },
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    },
+    {
+      "key": "laufen",
+      "name": "Laufen",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "timesPerWeek",
+            "n": 3
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "days": {
+      "2026-09-03": {
+        "completed": 1,
+        "scheduled": 1,
+        "share": 1.0,
+        "isPerfect": true
+      }
+    }
+  }
+}

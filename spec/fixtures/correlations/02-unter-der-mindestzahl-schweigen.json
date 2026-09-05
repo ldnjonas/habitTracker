@@ -1,0 +1,96 @@
+{
+  "name": "Unter der Mindestzahl an Tagen wird nichts behauptet — auch bei perfektem Zusammenhang",
+  "today": "2026-09-30",
+  "range": {
+    "from": "2026-09-01",
+    "to": "2026-09-10"
+  },
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-04",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-05",
+      "value": 1
+    }
+  ],
+  "dayLogs": [
+    {
+      "date": "2026-09-01",
+      "sleepHours": 9.0
+    },
+    {
+      "date": "2026-09-02",
+      "sleepHours": 9.0
+    },
+    {
+      "date": "2026-09-03",
+      "sleepHours": 9.0
+    },
+    {
+      "date": "2026-09-04",
+      "sleepHours": 9.0
+    },
+    {
+      "date": "2026-09-05",
+      "sleepHours": 9.0
+    },
+    {
+      "date": "2026-09-06",
+      "sleepHours": 5.0
+    },
+    {
+      "date": "2026-09-07",
+      "sleepHours": 5.0
+    },
+    {
+      "date": "2026-09-08",
+      "sleepHours": 5.0
+    },
+    {
+      "date": "2026-09-09",
+      "sleepHours": 5.0
+    },
+    {
+      "date": "2026-09-10",
+      "sleepHours": 5.0
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "count": 0
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "Der erste vergangene Tag mit einer Lücke entscheidet — der 30.08., nicht der 31.08.",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-08-28",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-08-29",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-01",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "run": {
+    "startsOn": "2026-08-28",
+    "endsOn": "2026-09-03"
+  },
+  "expected": {
+    "outcome": "failed",
+    "on": "2026-08-30",
+    "perfectDays": 5,
+    "plannedDays": 7,
+    "totalDays": 7,
+    "elapsedDays": 7
+  }
+}

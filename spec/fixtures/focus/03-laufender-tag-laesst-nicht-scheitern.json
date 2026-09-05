@@ -1,0 +1,44 @@
+{
+  "name": "Der laufende Tag lässt den Fokus nicht scheitern, und künftige Tage zählen nicht in den Nenner",
+  "today": "2026-09-04",
+  "habits": [
+    {
+      "key": "sport",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "sport",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "sport",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "run": {
+    "startsOn": "2026-09-02",
+    "endsOn": "2026-09-08"
+  },
+  "expected": {
+    "outcome": "running",
+    "dayNumber": 3,
+    "totalDays": 7,
+    "elapsedDays": 3,
+    "perfectDays": 2,
+    "plannedDays": 3
+  }
+}

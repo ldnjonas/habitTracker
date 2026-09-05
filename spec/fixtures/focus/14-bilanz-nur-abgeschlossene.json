@@ -1,0 +1,38 @@
+{
+  "name": "Bilanz: nur abgeschlossene Läufe zählen",
+  "today": "2026-09-04",
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "outcomes": [
+    {
+      "code": "completed"
+    },
+    {
+      "code": "failed",
+      "on": "2026-09-04"
+    },
+    {
+      "code": "running",
+      "dayNumber": 2,
+      "totalDays": 7
+    },
+    {
+      "code": "upcoming"
+    },
+    {
+      "code": "abandoned",
+      "on": "2026-09-04"
+    }
+  ],
+  "expected": {
+    "record": {
+      "completed": 1,
+      "failed": 1,
+      "abandoned": 1,
+      "finished": 3,
+      "successRate": 0.3333333333333333,
+      "longestWinStreak": 1
+    }
+  }
+}

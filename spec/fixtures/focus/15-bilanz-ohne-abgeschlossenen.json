@@ -1,0 +1,24 @@
+{
+  "name": "Bilanz: ohne abgeschlossenen Lauf gibt es keine Quote",
+  "today": "2026-09-04",
+  "habits": [],
+  "entries": [],
+  "exceptions": [],
+  "outcomes": [
+    {
+      "code": "running",
+      "dayNumber": 1,
+      "totalDays": 7
+    }
+  ],
+  "expected": {
+    "record": {
+      "completed": 0,
+      "failed": 0,
+      "abandoned": 0,
+      "finished": 0,
+      "successRate": null,
+      "longestWinStreak": 0
+    }
+  }
+}

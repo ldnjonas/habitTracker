@@ -1,0 +1,113 @@
+{
+  "name": "Der arbeitsreichste Tag setzt den Maßstab der Farbskala",
+  "today": "2026-09-04",
+  "range": {
+    "from": "2026-09-02",
+    "to": "2026-09-04"
+  },
+  "habits": [
+    {
+      "key": "a",
+      "name": "A",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    },
+    {
+      "key": "b",
+      "name": "B",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    },
+    {
+      "key": "c",
+      "name": "C",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "habit": "a",
+      "date": "2026-09-02",
+      "value": 1
+    },
+    {
+      "habit": "a",
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "habit": "b",
+      "date": "2026-09-03",
+      "value": 1
+    },
+    {
+      "habit": "c",
+      "date": "2026-09-03",
+      "value": 1
+    }
+  ],
+  "exceptions": [],
+  "expected": {
+    "days": {
+      "2026-09-03": {
+        "completed": 3,
+        "scheduled": 3,
+        "isPerfect": true
+      },
+      "2026-09-02": {
+        "completed": 1,
+        "scheduled": 3,
+        "isPerfect": false
+      }
+    },
+    "stats": {
+      "busiestDay": 3,
+      "totalCompletions": 4,
+      "perfectDays": 1,
+      "daysWithPlan": 3,
+      "perfectStreak": 1
+    },
+    "intensity": [
+      {
+        "date": "2026-09-03",
+        "scale": "count",
+        "busiestDay": 3,
+        "level": 4
+      },
+      {
+        "date": "2026-09-02",
+        "scale": "count",
+        "busiestDay": 3,
+        "level": 2
+      },
+      {
+        "date": "2026-09-02",
+        "scale": "share",
+        "busiestDay": 3,
+        "level": 2
+      }
+    ]
+  }
+}

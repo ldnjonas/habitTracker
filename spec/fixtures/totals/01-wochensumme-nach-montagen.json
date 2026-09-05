@@ -1,0 +1,60 @@
+{
+  "name": "Die Wochensumme fasst nach Montagen zusammen",
+  "habit": {
+    "key": "lesen",
+    "name": "Lesen",
+    "kind": "quantity",
+    "tracksTime": true,
+    "rules": [
+      {
+        "effectiveFrom": "2026-08-01",
+        "schedule": {
+          "kind": "daily"
+        },
+        "target": {
+          "value": 30,
+          "unit": "min",
+          "comparison": "atLeast"
+        }
+      }
+    ]
+  },
+  "range": {
+    "from": "2026-08-31",
+    "to": "2026-09-13"
+  },
+  "entries": [
+    {
+      "date": "2026-08-31",
+      "value": 30
+    },
+    {
+      "date": "2026-09-02",
+      "value": 45
+    },
+    {
+      "date": "2026-09-06",
+      "value": 15
+    },
+    {
+      "date": "2026-09-07",
+      "value": 60
+    }
+  ],
+  "events": [],
+  "expected": {
+    "total": 150,
+    "byWeek": {
+      "2026-08-31": 90,
+      "2026-09-07": 60
+    },
+    "byDay": {
+      "2026-08-31": 30,
+      "2026-09-02": 45,
+      "2026-09-06": 15,
+      "2026-09-07": 60
+    },
+    "activeDays": 4,
+    "dayCount": 14
+  }
+}
