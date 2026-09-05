@@ -53,6 +53,24 @@ public final class AppState {
 
     // MARK: - Laden
 
+    /// Zieht den Stichtag nach, wenn inzwischen ein neuer Tag begonnen hat.
+    ///
+    /// Ohne das zeigt eine App, die über Nacht in der Menüleiste hängt, am
+    /// Morgen noch die Liste von gestern — samt Häkchen, die nicht mehr gelten.
+    /// Der Zeitraum wandert mit, sonst fehlten die Einträge des neuen Tages.
+    ///
+    /// Gibt zurück, ob sich etwas geändert hat.
+    @discardableResult
+    public func refreshToday() async -> Bool {
+        let jetzt = CalendarDate.today()
+        guard jetzt != today else { return false }
+        today = jetzt
+        overviewAnchor = jetzt
+        loadedTo = max(loadedTo, jetzt)
+        await reload()
+        return true
+    }
+
     public func reload() async {
         isLoading = true
         defer { isLoading = false }
