@@ -576,8 +576,11 @@ public final class AppState {
     public var canReorder: Bool { selectedTagId == nil && !showsArchived }
 
     /// Verschiebt Habits und schreibt die neue Reihenfolge.
+    ///
+    /// Die Indizes beziehen sich auf `habits` — die vollständige, sortierte
+    /// Liste. Wer eine gefilterte Ansicht zeigt, muss vorher `canReorder`
+    /// prüfen; die Seitenleiste zeigt immer alle und darf ohne Weiteres.
     public func moveHabits(from source: IndexSet, to destination: Int) async {
-        guard canReorder else { return }
         var geordnet = habits.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
         geordnet.move(fromOffsets: source, toOffset: destination)
         do {

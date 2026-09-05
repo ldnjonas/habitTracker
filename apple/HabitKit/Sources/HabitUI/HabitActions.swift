@@ -91,3 +91,43 @@ public struct HabitMenuButton: View {
         .help("Bearbeiten, archivieren, löschen")
     }
 }
+
+
+/// „Nach oben" und „Nach unten" für ein Kontextmenü.
+///
+/// Verschieben ohne Ziehen. Eine Reihenfolge, die nur per Drag erreichbar ist,
+/// ist für Tastaturnutzer keine — und wenn das Ziehen einmal klemmt, für alle
+/// keine. Getrennt von `HabitActions`, weil es die Position in der Liste
+/// braucht und die nicht überall bekannt ist.
+public struct HabitMoveActions: View {
+    public var index: Int
+    public var count: Int
+    /// Bekommt Quelle und Ziel wie `onMove`.
+    public var onMove: (IndexSet, Int) -> Void
+
+    public init(index: Int, count: Int, onMove: @escaping (IndexSet, Int) -> Void) {
+        self.index = index
+        self.count = count
+        self.onMove = onMove
+    }
+
+    public var body: some View {
+        Divider()
+
+        Button {
+            onMove(IndexSet(integer: index), index - 1)
+        } label: {
+            Label("Nach oben", systemImage: "arrow.up")
+        }
+        .disabled(index == 0)
+
+        Button {
+            // `move` bestimmt das Ziel vor dem Entfernen — eine Position tiefer
+            // ist deshalb index + 2, nicht index + 1.
+            onMove(IndexSet(integer: index), index + 2)
+        } label: {
+            Label("Nach unten", systemImage: "arrow.down")
+        }
+        .disabled(index == count - 1)
+    }
+}

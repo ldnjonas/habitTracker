@@ -126,26 +126,10 @@ struct HabitListView: View {
             onUnarchive: { Task { await state.unarchive(habit) } },
             onDelete: { state.habitPendingDeletion = habit })
 
-        // Verschieben auch ohne Ziehen. Eine Reihenfolge, die nur per Drag
-        // erreichbar ist, ist für Tastaturnutzer keine — und wenn das Ziehen
-        // klemmt, ist sie für alle keine.
         if state.canReorder, let index = state.filteredHabits.firstIndex(of: habit) {
-            Divider()
-            Button {
-                Task { await state.moveHabits(from: IndexSet(integer: index), to: index - 1) }
-            } label: {
-                Label("Nach oben", systemImage: "arrow.up")
+            HabitMoveActions(index: index, count: state.filteredHabits.count) { quelle, ziel in
+                Task { await state.moveHabits(from: quelle, to: ziel) }
             }
-            .disabled(index == 0)
-
-            Button {
-                // `move` rechnet das Ziel vor dem Entfernen — eine Position
-                // tiefer ist deshalb index + 2, nicht index + 1.
-                Task { await state.moveHabits(from: IndexSet(integer: index), to: index + 2) }
-            } label: {
-                Label("Nach unten", systemImage: "arrow.down")
-            }
-            .disabled(index == state.filteredHabits.count - 1)
         }
     }
 }

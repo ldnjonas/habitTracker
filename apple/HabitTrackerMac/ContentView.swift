@@ -126,6 +126,12 @@ struct ContentView: View {
                         // Ort, an dem sie den Habit vor sich haben.
                         .contextMenu { actions(for: habit) }
                     }
+                    // Hier ohne `canReorder`-Prüfung: die Seitenleiste zeigt
+                    // immer alle Habits in ihrer Reihenfolge, eine Verschiebung
+                    // ist also nie mehrdeutig.
+                    .onMove { source, ziel in
+                        Task { await state.moveHabits(from: source, to: ziel) }
+                    }
                 }
             }
 
@@ -181,6 +187,14 @@ struct ContentView: View {
             onArchive: { Task { await state.archive(habit) } },
             onUnarchive: { Task { await state.unarchive(habit) } },
             onDelete: { state.habitPendingDeletion = habit })
+
+        // Die Seitenleiste zeigt immer alle Habits — hier ist die Position
+        // eindeutig und das Verschieben ohne Vorbehalt möglich.
+        if let index = state.habits.firstIndex(of: habit) {
+            HabitMoveActions(index: index, count: state.habits.count) { quelle, ziel in
+                Task { await state.moveHabits(from: quelle, to: ziel) }
+            }
+        }
     }
 
     /// Wie viele der heute fälligen Habits noch offen sind.
