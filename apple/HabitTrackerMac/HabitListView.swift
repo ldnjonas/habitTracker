@@ -8,14 +8,19 @@ struct HabitListView: View {
     var onEdit: (Habit) -> Void
     var onSelect: (Habit) -> Void
 
+    @State private var selection: UUID?
+
     var body: some View {
         @Bindable var state = state
 
-        List {
+        // `List(selection:)` statt einer eigenen Tippgeste auf der Zeile: eine
+        // solche Geste fängt auf dem Mac das Ziehen ab, bevor die Liste es
+        // sieht — dann lässt sich trotz `.onMove` nichts verschieben. Wer die
+        // Auswahl der Liste überlässt, bekommt Klicken und Ziehen beides.
+        List(selection: $selection) {
             ForEach(state.filteredHabits) { habit in
                 row(habit)
-                    .contentShape(Rectangle())
-                    .onTapGesture { onSelect(habit) }
+                    .tag(habit.id)
                     .contextMenu { actions(habit) }
             }
             // Nur ohne Filter: sonst ließe sich die Verschiebung nicht auf die
@@ -28,6 +33,13 @@ struct HabitListView: View {
                 Text("Zum Umsortieren den Filter aufheben.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+        }
+        .onChange(of: selection) { _, neu in
+            guard let neu, let habit = state.habit(neu) else { return }
+            // Zurücksetzen, sonst öffnet dieselbe Zeile beim zweiten Anklicken
+            // nicht mehr — die Auswahl hätte sich ja nicht geändert.
+            selection = nil
+            onSelect(habit)
         }
         .navigationTitle("Alle Habits")
         .toolbar {
@@ -113,5 +125,27 @@ struct HabitListView: View {
             onArchive: { Task { await state.archive(habit) } },
             onUnarchive: { Task { await state.unarchive(habit) } },
             onDelete: { state.habitPendingDeletion = habit })
+
+        // Verschieben auch ohne Ziehen. Eine Reihenfolge, die nur per Drag
+        // erreichbar ist, ist für Tastaturnutzer keine — und wenn das Ziehen
+        // klemmt, ist sie für alle keine.
+        if state.canReorder, let index = state.filteredHabits.firstIndex(of: habit) {
+            Divider()
+            Button {
+                Task { await state.moveHabits(from: IndexSet(integer: index), to: index - 1) }
+            } label: {
+                Label("Nach oben", systemImage: "arrow.up")
+            }
+            .disabled(index == 0)
+
+            Button {
+                // `move` rechnet das Ziel vor dem Entfernen — eine Position
+                // tiefer ist deshalb index + 2, nicht index + 1.
+                Task { await state.moveHabits(from: IndexSet(integer: index), to: index + 2) }
+            } label: {
+                Label("Nach unten", systemImage: "arrow.down")
+            }
+            .disabled(index == state.filteredHabits.count - 1)
+        }
     }
 }

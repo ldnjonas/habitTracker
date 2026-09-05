@@ -996,3 +996,49 @@ struct SortOrderTests {
                 == ["Ameise", "Zebra"])
     }
 }
+
+// `move(fromOffsets:toOffset:)` ist eine SwiftUI-Erweiterung, keine aus Foundation.
+import SwiftUI
+
+@Suite("Verschieben")
+struct MoveTests {
+
+    /// Die Rechnung hinter „Nach oben“ und „Nach unten“ im Kontextmenü.
+    ///
+    /// `move(fromOffsets:toOffset:)` rechnet das Ziel **vor** dem Entfernen —
+    /// eine Position tiefer ist deshalb `index + 2`, nicht `index + 1`. Ein
+    /// naheliegender Fehler, der die Zeile scheinbar stehen lässt.
+    @Test("Eine Position hoch und runter")
+    func moveByOne() {
+        var liste = ["A", "B", "C", "D"]
+        liste.move(fromOffsets: IndexSet(integer: 2), toOffset: 1)      // C nach oben
+        #expect(liste == ["A", "C", "B", "D"])
+
+        liste = ["A", "B", "C", "D"]
+        liste.move(fromOffsets: IndexSet(integer: 1), toOffset: 3)      // B nach unten
+        #expect(liste == ["A", "C", "B", "D"])
+    }
+
+    @Test("Neu nummeriert wird lückenlos, auch aus Doubletten heraus")
+    func renumberingIsGapless() async throws {
+        let store = try makeStore()
+        var habits: [Habit] = []
+        for name in ["A", "B", "C", "D"] {
+            habits.append(try await store.createHabit(dailyDraft(name)))
+        }
+        // Doubletten erzeugen, wie sie im Altbestand vorlagen.
+        for habit in habits {
+            _ = try await store.updateHabit(id: habit.id, HabitPatch(sortOrder: 0))
+        }
+
+        var geordnet = try await store.listHabits(includeArchived: false)
+        geordnet.move(fromOffsets: IndexSet(integer: 3), toOffset: 0)
+        for (index, habit) in geordnet.enumerated() {
+            _ = try await store.updateHabit(id: habit.id, HabitPatch(sortOrder: index))
+        }
+
+        let danach = try await store.listHabits(includeArchived: false)
+        #expect(danach.map(\.name) == ["D", "A", "B", "C"])
+        #expect(danach.map(\.sortOrder) == [0, 1, 2, 3])
+    }
+}
