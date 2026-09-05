@@ -96,6 +96,10 @@ struct ContentView: View {
                                 .foregroundStyle(Color(hex: habit.colorHex))
                         }
                         .tag(SidebarItem.habit(habit.id))
+                        // Derselbe Satz Aktionen wie in den Listen und in der
+                        // Detail-Toolbar — die Seitenleiste ist für viele der
+                        // Ort, an dem sie den Habit vor sich haben.
+                        .contextMenu { actions(for: habit) }
                     }
                 }
             }
@@ -116,6 +120,16 @@ struct ContentView: View {
             }
             .help("Neuen Habit anlegen (⌘N)")
         }
+    }
+
+    @ViewBuilder
+    private func actions(for habit: Habit) -> some View {
+        HabitActions(
+            habit: habit,
+            onEdit: { editing = .edit(habit) },
+            onArchive: { Task { await state.archive(habit) } },
+            onUnarchive: { Task { await state.unarchive(habit) } },
+            onDelete: { state.habitPendingDeletion = habit })
     }
 
     /// Wie viele der heute fälligen Habits noch offen sind.
