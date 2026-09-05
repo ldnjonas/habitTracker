@@ -52,11 +52,16 @@ struct ContentView: View {
             isPresented: Binding(get: { state.habitPendingDeletion != nil },
                                  set: { if !$0 { state.habitPendingDeletion = nil } }),
             presenting: state.habitPendingDeletion
-        ) { _ in
+        ) { habit in
+            // `habit` kommt aus `presenting` und überlebt das Schließen des
+            // Dialogs. Über `state.habitPendingDeletion` wäre er hier schon
+            // `nil`: SwiftUI setzt `isPresented` auf false, *bevor* die Aktion
+            // läuft, und der Setter oben räumt den Zustand ab — das Löschen
+            // liefe still ins Leere. Genau dafür gibt es `presenting`.
             Button("Löschen", role: .destructive) {
-                Task { await state.confirmPendingDeletion() }
+                Task { await state.delete(habit) }
             }
-            Button("Abbrechen", role: .cancel) { state.habitPendingDeletion = nil }
+            Button("Abbrechen", role: .cancel) { }
         } message: { _ in
             Text("Der Habit und sein gesamter Verlauf liegen \(state.trashWindowDays) Tage im Papierkorb und lassen sich von dort zurückholen.")
         }

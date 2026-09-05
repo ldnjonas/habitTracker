@@ -407,12 +407,6 @@ public final class AppState {
         }
     }
 
-    /// Löscht den Habit, für den die Rückfrage offen ist.
-    public func confirmPendingDeletion() async {
-        guard let habit = habitPendingDeletion else { return }
-        habitPendingDeletion = nil
-        await delete(habit)
-    }
 
     // MARK: - Sicherung
 
