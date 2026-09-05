@@ -39,6 +39,8 @@ public struct OverviewHeatmapView: View {
     public var busiestDay: Int
     public var tint: Color
     public var selected: CalendarDate?
+    /// Zeitraum eines Fokus-Laufs, der hervorgehoben wird.
+    public var focusWindow: ClosedRange<CalendarDate>?
     public var onSelect: ((CalendarDate) -> Void)?
 
     private let cell: CGFloat = 11
@@ -54,6 +56,7 @@ public struct OverviewHeatmapView: View {
         weeks: Int = 53,
         tint: Color = .accentColor,
         selected: CalendarDate? = nil,
+        focusWindow: ClosedRange<CalendarDate>? = nil,
         onSelect: ((CalendarDate) -> Void)? = nil
     ) {
         self.summaries = summaries
@@ -64,6 +67,7 @@ public struct OverviewHeatmapView: View {
         self.weeks = weeks
         self.tint = tint
         self.selected = selected
+        self.focusWindow = focusWindow
         self.onSelect = onSelect
     }
 
@@ -114,6 +118,11 @@ public struct OverviewHeatmapView: View {
                 if date == selected {
                     RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                         .strokeBorder(Color.primary, lineWidth: 1.5)
+                } else if focusWindow?.contains(date) == true {
+                    // Sieben benachbarte Ränder ergeben einen sichtbaren Block,
+                    // ohne dass die Farbe des Tages selbst verfälscht wird.
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .strokeBorder(Color.orange, lineWidth: 1.5)
                 } else if date == today {
                     RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.45), lineWidth: 1)

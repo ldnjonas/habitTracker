@@ -373,3 +373,49 @@ struct DayLogRow: SnakeCaseRecord {
                updatedAt: updatedAt, deletedAt: deletedAt)
     }
 }
+
+// MARK: - focus_run
+
+struct FocusRunRow: SnakeCaseRecord {
+    static let databaseTableName = "focus_run"
+
+    var id: String
+    var userId: String
+    var title: String?
+    var startsOn: CalendarDate
+    var endsOn: CalendarDate
+    var habitIds: String            // JSON
+    var abandonedOn: CalendarDate?
+    var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
+    var serverSeq: Int64?
+    var dirty: Bool
+
+    init(_ focus: FocusRun) throws {
+        id = focus.id.uuidString
+        userId = focus.userId
+        title = focus.title
+        startsOn = focus.startsOn
+        endsOn = focus.endsOn
+        habitIds = try JSONColumn.encode(focus.habitIds.map(\.uuidString))
+        abandonedOn = focus.abandonedOn
+        createdAt = focus.createdAt
+        updatedAt = focus.updatedAt
+        deletedAt = focus.deletedAt
+        serverSeq = nil
+        dirty = true
+    }
+
+    var focus: FocusRun {
+        get throws {
+            FocusRun(
+                id: UUID(uuidString: id)!, userId: userId, title: title,
+                startsOn: startsOn, endsOn: endsOn,
+                habitIds: try JSONColumn.decode([String].self, from: habitIds)
+                    .compactMap(UUID.init(uuidString:)),
+                abandonedOn: abandonedOn, createdAt: createdAt,
+                updatedAt: updatedAt, deletedAt: deletedAt)
+        }
+    }
+}

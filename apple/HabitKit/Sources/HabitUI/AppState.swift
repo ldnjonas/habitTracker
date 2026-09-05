@@ -18,6 +18,7 @@ public final class AppState {
     /// Einträge des geladenen Zeitraums, für schnellen Zugriff je Habit und Tag.
     public private(set) var entries: [UUID: [CalendarDate: Entry]] = [:]
     public private(set) var exceptions: [DayException] = []
+    public private(set) var focusRuns: [FocusRun] = []
     public private(set) var isLoading = false
 
     /// Fehler werden angezeigt, nicht verschluckt — eine Datenbank, die nicht
@@ -48,6 +49,15 @@ public final class AppState {
         do {
             habits = try await api.listHabits(includeArchived: false)
             tags = try await api.tags()
+            focusRuns = try await api.focusRuns()
+
+            // Das geladene Fenster muss jeden Fokus-Lauf abdecken. Sonst
+            // rechnete ein alter Lauf mangels Einträgen als gescheitert — und
+            // ein Verlauf, der Erfolge in Misserfolge verwandelt, ist schlimmer
+            // als keiner.
+            if let earliest = focusRuns.map(\.startsOn).min() {
+                loadedFrom = min(loadedFrom, earliest)
+            }
             exceptions = try await api.exceptions(from: loadedFrom, to: loadedTo)
 
             let all = try await api.entries(habitId: nil, from: loadedFrom, to: loadedTo)
@@ -204,6 +214,57 @@ public final class AppState {
 
     private var allEntries: [Entry] {
         entries.values.flatMap(\.values)
+    }
+
+    // MARK: - Fokus
+
+    /// Alle Läufe ausgewertet, der jüngste zuerst.
+    ///
+    /// Berechnet statt über den Store geholt: `evaluate` ist eine reine
+    /// Funktion über Daten, die ohnehin im Speicher liegen. Über den Store
+    /// kostete jedes Abhaken drei zusätzliche Abfragen, nur damit der Banner
+    /// im Kopf der Übersicht mitzählt.
+    public var focusProgress: [FocusProgress] {
+        focusRuns.map {
+            HabitCore.evaluate($0, habits: habits, entries: allEntries,
+                               exceptions: exceptions, today: today)
+        }
+    }
+
+    /// Der laufende oder anstehende Fokus, falls es einen gibt.
+    public var activeFocus: FocusProgress? {
+        focusProgress.first { $0.outcome.isOpen }
+    }
+
+    public var focusRecord: FocusRecord {
+        record(of: focusProgress.map(\.outcome))
+    }
+
+    public func startFocus(days: Int, habitIds: [UUID], title: String?) async {
+        do {
+            _ = try await api.startFocus(days: days, habitIds: habitIds, title: title)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func abandonFocus(_ id: UUID) async {
+        do {
+            try await api.abandonFocus(id: id)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func deleteFocusRun(_ id: UUID) async {
+        do {
+            try await api.deleteFocusRun(id: id)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
     }
 
     /// Was an einem Tag anstand und was daraus wurde — für die Detailzeile

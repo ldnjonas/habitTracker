@@ -719,3 +719,118 @@ struct CascadeTests {
         #expect(try await store.tombstones("habit_tag").values.allSatisfy { $0 == nil })
     }
 }
+
+@Suite("Fokus durch den Store")
+struct StoreFocusTests {
+
+    @Test("Ein Fokus beginnt heute und läuft die gewünschte Zahl Tage")
+    func startsToday() async throws {
+        let store = try makeStore()
+        _ = try await store.createHabit(dailyDraft())
+        let run = try await store.startFocus(days: 7)
+
+        #expect(run.startsOn == today)
+        #expect(run.endsOn == CalendarDate(iso: "2026-09-10")!)
+        #expect(run.totalDays == 7)
+        #expect(run.habitIds.isEmpty, "leer heißt: alle Habits")
+        #expect(run.displayTitle == "7-Tage-Fokus")
+    }
+
+    @Test("Ein zweiter Fokus verdrängt keinen heilen ersten")
+    func onlyOneOpenRun() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        try await store.setEntry(habitId: habit.id, date: today, value: 1,
+                                 note: nil, source: .manual)
+        try await store.startFocus(days: 7)
+
+        await #expect(throws: HabitStoreError.self) {
+            try await store.startFocus(days: 7)
+        }
+        #expect(try await store.focusRuns().count == 1)
+    }
+
+    /// Nach einem gerissenen Lauf sofort neu anfangen zu dürfen ist der Sinn
+    /// der Sache — nicht bis zum Fensterende warten zu müssen.
+    @Test("Nach einem gerissenen Lauf lässt sich sofort neu starten")
+    func canRestartAfterFailure() async throws {
+        let store = try LocalHabitAPI.inMemory(currentDate: { CalendarDate(iso: "2026-09-01")! })
+        _ = try await store.createHabit(dailyDraft(from: "2026-08-01"))
+        try await store.startFocus(days: 7)
+
+        // Zwei Tage später, nichts erledigt: der Lauf ist gerissen.
+        let later = try LocalHabitAPI(dbQueue: store.dbQueue,
+                                      currentDate: { CalendarDate(iso: "2026-09-03")! })
+        let progress = try #require(try await later.focusProgress().first)
+        #expect(progress.outcome == .failed(on: CalendarDate(iso: "2026-09-01")!))
+        #expect(try await later.activeFocus() == nil)
+
+        try await later.startFocus(days: 3)
+        #expect(try await later.focusRuns().count == 2)
+    }
+
+    @Test("Ein abgebrochener Lauf gibt den Platz frei")
+    func abandonReleasesSlot() async throws {
+        let store = try makeStore()
+        _ = try await store.createHabit(dailyDraft())
+        let run = try await store.startFocus(days: 7)
+
+        try await store.abandonFocus(id: run.id)
+        let progress = try #require(try await store.focusProgress().first)
+        #expect(progress.outcome == .abandoned(on: today))
+
+        try await store.startFocus(days: 3)
+        #expect(try await store.focusRuns().count == 2)
+    }
+
+    @Test("Ein Lauf ohne Tage wird abgelehnt")
+    func rejectsEmptyRun() async throws {
+        let store = try makeStore()
+        await #expect(throws: HabitStoreError.self) {
+            try await store.startFocus(days: 0)
+        }
+    }
+
+    @Test("Der Verlauf überlebt das Löschen eines beteiligten Habits")
+    func historySurvivesHabitDeletion() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        let run = try await store.startFocus(days: 3, habitIds: [habit.id])
+
+        try await store.deleteHabit(id: habit.id)
+
+        // Der Lauf hat stattgefunden; ein Fremdschlüssel hätte ihn mitgerissen.
+        let runs = try await store.focusRuns()
+        #expect(runs.count == 1)
+        #expect(runs[0].id == run.id)
+        #expect(runs[0].habitIds == [habit.id])
+    }
+
+    @Test("Die Bilanz zählt nur abgeschlossene Läufe")
+    func recordCountsFinishedOnly() async throws {
+        let store = try LocalHabitAPI.inMemory(currentDate: { CalendarDate(iso: "2026-09-20")! })
+        let habit = try await store.createHabit(dailyDraft(from: "2026-08-01"))
+        _ = try await store.setBackfillLimitDays(0)     // Grenze aus, wir tragen nach
+
+        // Ein geschaffter Lauf: 01.–03.09. lückenlos.
+        try await store.dbQueue.write { db in
+            var row = try FocusRunRow(FocusRun(startsOn: CalendarDate(iso: "2026-09-01")!,
+                                               endsOn: CalendarDate(iso: "2026-09-03")!))
+            try row.insert(db)
+            // Ein gerissener: 10.–12.09. ohne Einträge.
+            var second = try FocusRunRow(FocusRun(startsOn: CalendarDate(iso: "2026-09-10")!,
+                                                  endsOn: CalendarDate(iso: "2026-09-12")!))
+            try second.insert(db)
+        }
+        for day in ["2026-09-01", "2026-09-02", "2026-09-03"] {
+            try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: day)!,
+                                     value: 1, note: nil, source: .manual)
+        }
+
+        let outcomes = try await store.focusProgress().map(\.outcome)
+        let result = record(of: outcomes)
+        #expect(result.completed == 1)
+        #expect(result.failed == 1)
+        #expect(result.successRate == 0.5)
+    }
+}

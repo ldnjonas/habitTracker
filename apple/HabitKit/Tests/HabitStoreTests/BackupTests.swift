@@ -400,3 +400,63 @@ struct BackupImportTests {
         #expect(stats.currentStreak == 2)
     }
 }
+
+@Suite("Sicherung: Fokus-Läufe")
+struct BackupFocusTests {
+
+    @Test("Fokus-Läufe wandern mit und überstehen die Wiederherstellung")
+    func focusRunsRoundTrip() async throws {
+        let source = try makeStore()
+        let (sport, _) = try await seed(source)
+        try await source.startFocus(days: 7, habitIds: [sport.id], title: "Saubere Woche")
+
+        let file = try await source.exportBackup(generator: "Test/1.0")
+        #expect(file.focusRuns.count == 1)
+        #expect(file.summary.contains("1 Fokus-Läufe"))
+
+        let target = try makeStore()
+        let report = try await target.importBackup(file, mode: .merge)
+        #expect(report.focusRuns.inserted == 1)
+
+        let restored = try #require(try await target.focusRuns().first)
+        #expect(restored.title == "Saubere Woche")
+        #expect(restored.habitIds == [sport.id])
+        #expect(restored.totalDays == 7)
+    }
+
+    @Test("Ein Einzelexport nimmt keine Fokus-Läufe mit")
+    func focusRunsAreFullExportOnly() async throws {
+        let store = try makeStore()
+        let (sport, _) = try await seed(store)
+        try await store.startFocus(days: 7)
+
+        // Ein Lauf gehört keinem einzelnen Habit — er hat einen eigenen Umfang.
+        let file = try await store.exportBackup(habitIds: [sport.id], generator: "Test/1.0")
+        #expect(file.focusRuns.isEmpty)
+    }
+
+    /// Sonst wäre jede neue Tabelle ein Bruch für alte Sicherungen.
+    @Test("Eine Datei ohne das Feld bleibt lesbar")
+    func olderFilesStillDecode() throws {
+        let json = """
+        {"formatVersion":1,"exportedAt":"2026-09-04T12:00:00.000Z","generator":"alt",
+         "scope":"full","habits":[],"tags":[],"entries":[],"events":[],
+         "exceptions":[],"dayLogs":[]}
+        """
+        let file = try BackupCoding.decode(Data(json.utf8))
+        #expect(file.focusRuns.isEmpty)
+        #expect(file.generator == "alt")
+    }
+
+    @Test("Auch weggelassene Listen sind verzeihlich")
+    func missingArraysDefaultToEmpty() throws {
+        // Ein fremdes Werkzeug schreibt leere Listen womöglich gar nicht erst.
+        let json = """
+        {"formatVersion":1,"exportedAt":"2026-09-04T12:00:00.000Z","scope":"full"}
+        """
+        let file = try BackupCoding.decode(Data(json.utf8))
+        #expect(file.habits.isEmpty)
+        #expect(file.entries.isEmpty)
+        #expect(file.generator == "unbekannt")
+    }
+}

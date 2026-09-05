@@ -41,6 +41,24 @@ nach dem Hinzufügen neuer Dateien `xcodegen generate` erneut ausführen.
 Die Datenbank liegt unter
 `~/Library/Application Support/HabitTracker/habits.sqlite`.
 
+## Fokus
+
+Ein Fokus ist ein selbst gesetztes Fenster — typischerweise sieben Tage — in dem
+lückenlos alles erfüllt werden soll. Der Streak fragt „wie lange schon?", der
+Fokus fragt „schaffe ich *diese* Woche?". Das ist ein anderes Versprechen: es
+hat einen Anfang, ein Ende und ein Ergebnis, und man kann es verlieren, ohne
+alles zu verlieren.
+
+**Gespeichert wird nur die Absicht, nie das Ergebnis.** Ob ein Lauf durchgezogen
+wurde, ergibt sich aus den Einträgen — ein gespeichertes „geschafft" würde von
+ihnen abdriften, sobald ein Tag nachträglich korrigiert wird.
+
+Bewertet wird nach derselben Regel wie die Übersicht: ein Tag ist geschafft,
+wenn alles erledigt ist, was an ihm *verpflichtend* war. Daraus folgt ohne
+Sonderfälle, dass ein Wochenziel keinen einzelnen Tag reißen kann und Urlaub
+den Tag herausnimmt. Ein Streak Freeze rettet einen Fokus dagegen nicht — er ist
+das strengere Versprechen.
+
 ## Sicherung
 
 „Sicherung → Sichern" schreibt eine JSON-Datei — den gesamten Bestand oder

@@ -15,6 +15,8 @@ public struct OverviewCalendarGrid: View {
     public var busiestDay: Int
     public var tint: Color
     public var selected: CalendarDate?
+    /// Zeitraum eines Fokus-Laufs, der hervorgehoben wird.
+    public var focusWindow: ClosedRange<CalendarDate>?
     public var onSelect: ((CalendarDate) -> Void)?
 
     public init(
@@ -26,6 +28,7 @@ public struct OverviewCalendarGrid: View {
         busiestDay: Int,
         tint: Color = .accentColor,
         selected: CalendarDate? = nil,
+        focusWindow: ClosedRange<CalendarDate>? = nil,
         onSelect: ((CalendarDate) -> Void)? = nil
     ) {
         self.summaries = summaries
@@ -36,6 +39,7 @@ public struct OverviewCalendarGrid: View {
         self.busiestDay = busiestDay
         self.tint = tint
         self.selected = selected
+        self.focusWindow = focusWindow
         self.onSelect = onSelect
     }
 
@@ -88,6 +92,9 @@ public struct OverviewCalendarGrid: View {
             if date == selected {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .strokeBorder(Color.primary, lineWidth: 2)
+            } else if focusWindow?.contains(date) == true {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(Color.orange, lineWidth: 2)
             } else if date == today {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.5), lineWidth: 1.5)

@@ -20,6 +20,13 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: 22) {
                 let stats = state.overviewStats
 
+                if let focus = state.activeFocus {
+                    FocusBanner(progress: focus, today: state.today,
+                                habitNames: focusHabitNames(focus)) {
+                        Task { await state.abandonFocus(focus.run.id) }
+                    }
+                }
+
                 OverviewStatsRow(stats: stats, habitCount: state.habits.count)
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -41,9 +48,13 @@ struct OverviewView: View {
                         .padding(.top, 40)
                 }
             }
+            // Begrenzt, damit die Karten auf einem breiten Bildschirm nicht
+            // auseinanderlaufen — die Jahres-Heatmap braucht rund 760 Punkte.
+            .frame(maxWidth: 1080, alignment: .leading)
             .padding(20)
             .animation(.easeInOut(duration: 0.15), value: selectedDay)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .navigationTitle("Übersicht")
         .task { await state.ensureOverviewLoaded() }
         .onChange(of: state.overviewSpan) {
@@ -125,6 +136,7 @@ struct OverviewView: View {
                 scale: scale,
                 busiestDay: state.colorReference,
                 selected: selectedDay,
+                focusWindow: focusWindow,
                 onSelect: select)
             .padding(.vertical, 4)
 
@@ -137,7 +149,19 @@ struct OverviewView: View {
                 scale: scale,
                 busiestDay: state.colorReference,
                 selected: selectedDay,
+                focusWindow: focusWindow,
                 onSelect: select)
+        }
+    }
+
+    /// Der Zeitraum des laufenden Fokus, damit er im Bild wiederzufinden ist.
+    private var focusWindow: ClosedRange<CalendarDate>? {
+        state.activeFocus.map { $0.run.startsOn...$0.run.endsOn }
+    }
+
+    private func focusHabitNames(_ progress: FocusProgress) -> [String] {
+        progress.run.habitIds.compactMap { id in
+            state.habits.first { $0.id == id }?.name
         }
     }
 

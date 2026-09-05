@@ -55,6 +55,15 @@ public protocol HabitAPI: Sendable {
     func stats(habitId: UUID, from: CalendarDate, to: CalendarDate) async throws -> HabitStats
     func trend(habitId: UUID) async throws -> Trend?
 
+    // Fokus
+    func focusRuns() async throws -> [FocusRun]
+    func focusProgress() async throws -> [FocusProgress]
+    func activeFocus() async throws -> FocusProgress?
+    @discardableResult
+    func startFocus(days: Int, habitIds: [UUID], title: String?) async throws -> FocusRun
+    func abandonFocus(id: UUID) async throws
+    func deleteFocusRun(id: UUID) async throws
+
     // Sicherung
     /// `habitIds == nil` sichert den gesamten Bestand.
     func exportBackup(habitIds: Set<UUID>?, generator: String) async throws -> BackupFile
@@ -188,6 +197,9 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
     case needsAtLeastOneRule
     /// Der Eintrag liegt weiter zurück, als `backfillLimitDays` erlaubt.
     case backfillLimitExceeded(date: CalendarDate, limitDays: Int)
+    /// Es läuft bereits ein Fokus, der noch heil ist.
+    case focusAlreadyRunning(id: UUID, endsOn: CalendarDate)
+    case invalidFocusLength(Int)
 
     public var description: String {
         switch self {
@@ -197,6 +209,10 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
         case .needsAtLeastOneRule: "Ein Habit braucht mindestens eine Regel"
         case .backfillLimitExceeded(let date, let limit):
             "\(date) liegt weiter als \(limit) Tage zurück"
+        case .focusAlreadyRunning(_, let endsOn):
+            "Es läuft bereits ein Fokus bis zum \(endsOn)"
+        case .invalidFocusLength(let days):
+            "Ein Fokus braucht mindestens einen Tag, nicht \(days)"
         }
     }
 }

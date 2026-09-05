@@ -218,6 +218,30 @@ enum Schema {
             }
         }
 
+        migrator.registerMigration("v3-focus") { db in
+            try db.create(table: "focus_run") { t in
+                t.primaryKey("id", .text)
+                t.column("user_id", .text).notNull()
+                t.column("title", .text)
+                t.column("starts_on", .text).notNull()
+                t.column("ends_on", .text).notNull()
+                // JSON statt Verknüpfungstabelle: die Auswahl ist eine
+                // Momentaufnahme der Absicht und wird nie nach Habit abgefragt.
+                // Ohne Fremdschlüssel reißt ein später gelöschter Habit den
+                // Verlaufseintrag auch nicht mit — was richtig ist, denn der
+                // Lauf hat stattgefunden.
+                t.column("habit_ids", .text).notNull().defaults(to: "[]")
+                t.column("abandoned_on", .text)
+                t.column("created_at", .text).notNull()
+                t.column("updated_at", .text).notNull()
+                t.column("deleted_at", .text)
+                t.column("server_seq", .integer)
+                t.column("dirty", .boolean).notNull().defaults(to: true)
+            }
+            try db.create(index: "focus_run_starts_on", on: "focus_run",
+                          columns: ["starts_on"])
+        }
+
         return migrator
     }
 }

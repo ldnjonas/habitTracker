@@ -13,6 +13,7 @@ struct ContentView: View {
     enum SidebarItem: Hashable {
         case today
         case overview
+        case focus
         case habits
         case trash
         case backup
@@ -60,6 +61,8 @@ struct ContentView: View {
                     .tag(SidebarItem.today)
                 Label("Übersicht", systemImage: "square.grid.3x3")
                     .tag(SidebarItem.overview)
+                Label("Fokus", systemImage: "flame")
+                    .tag(SidebarItem.focus)
                 Label("Alle Habits", systemImage: "list.bullet")
                     .tag(SidebarItem.habits)
             }
@@ -120,6 +123,9 @@ struct ContentView: View {
 
         case .overview:
             OverviewView()
+
+        case .focus:
+            FocusView()
 
         case .backup:
             BackupView()

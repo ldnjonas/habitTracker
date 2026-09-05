@@ -27,6 +27,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
     public var events: [EntryEvent]
     public var exceptions: [DayException]
     public var dayLogs: [DayLog]
+    public var focusRuns: [FocusRun]
 
     public enum Scope: String, Codable, Sendable, Hashable {
         /// Der gesamte Bestand.
@@ -45,7 +46,8 @@ public struct BackupFile: Codable, Hashable, Sendable {
         entries: [Entry] = [],
         events: [EntryEvent] = [],
         exceptions: [DayException] = [],
-        dayLogs: [DayLog] = []
+        dayLogs: [DayLog] = [],
+        focusRuns: [FocusRun] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -57,6 +59,28 @@ public struct BackupFile: Codable, Hashable, Sendable {
         self.events = events
         self.exceptions = exceptions
         self.dayLogs = dayLogs
+        self.focusRuns = focusRuns
+    }
+
+    /// Von Hand, weil die synthetisierte Fassung fehlende Schlüssel als Fehler
+    /// wertet und Vorgabewerte ignoriert.
+    ///
+    /// Eine Sicherung, die vor einer neuen Tabelle geschrieben wurde, muss
+    /// weiter lesbar bleiben — sonst wäre jede Erweiterung ein Bruch. Aus
+    /// demselben Grund darf eine fremd erzeugte Datei leere Listen weglassen.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        formatVersion = try c.decode(Int.self, forKey: .formatVersion)
+        exportedAt = try c.decode(Date.self, forKey: .exportedAt)
+        generator = try c.decodeIfPresent(String.self, forKey: .generator) ?? "unbekannt"
+        scope = try c.decodeIfPresent(Scope.self, forKey: .scope) ?? .full
+        habits = try c.decodeIfPresent([Habit].self, forKey: .habits) ?? []
+        tags = try c.decodeIfPresent([Tag].self, forKey: .tags) ?? []
+        entries = try c.decodeIfPresent([Entry].self, forKey: .entries) ?? []
+        events = try c.decodeIfPresent([EntryEvent].self, forKey: .events) ?? []
+        exceptions = try c.decodeIfPresent([DayException].self, forKey: .exceptions) ?? []
+        dayLogs = try c.decodeIfPresent([DayLog].self, forKey: .dayLogs) ?? []
+        focusRuns = try c.decodeIfPresent([FocusRun].self, forKey: .focusRuns) ?? []
     }
 
     /// Zusammenfassung für die Bestätigung vor dem Import.
@@ -68,6 +92,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
         if !events.isEmpty { parts.append("\(events.count) Zeitstempel") }
         if !exceptions.isEmpty { parts.append("\(exceptions.count) Ausnahmen") }
         if !dayLogs.isEmpty { parts.append("\(dayLogs.count) Journaltage") }
+        if !focusRuns.isEmpty { parts.append("\(focusRuns.count) Fokus-Läufe") }
         return parts.isEmpty ? "leer" : parts.joined(separator: " · ")
     }
 
@@ -75,6 +100,7 @@ public struct BackupFile: Codable, Hashable, Sendable {
     public var dateRange: (from: CalendarDate, to: CalendarDate)? {
         let dates = entries.map(\.date) + events.map(\.date)
             + exceptions.map(\.date) + dayLogs.map(\.date)
+            + focusRuns.map(\.startsOn) + focusRuns.map(\.endsOn)
         guard let from = dates.min(), let to = dates.max() else { return nil }
         return (from, to)
     }
@@ -273,19 +299,24 @@ public struct ImportReport: Hashable, Sendable {
     public var events = Counts()
     public var exceptions = Counts()
     public var dayLogs = Counts()
+    public var focusRuns = Counts()
     /// Nicht fatale Auffälligkeiten, die dem Nutzer angezeigt werden sollten.
     public var problems: [BackupProblem] = []
 
     public init(mode: ImportMode) { self.mode = mode }
 
+    private var allCounts: [Counts] {
+        [habits, tags, entries, events, exceptions, dayLogs, focusRuns]
+    }
+
     public var totalInserted: Int {
-        [habits, tags, entries, events, exceptions, dayLogs].reduce(0) { $0 + $1.inserted }
+        allCounts.reduce(0) { $0 + $1.inserted }
     }
     public var totalUpdated: Int {
-        [habits, tags, entries, events, exceptions, dayLogs].reduce(0) { $0 + $1.updated }
+        allCounts.reduce(0) { $0 + $1.updated }
     }
     public var totalSkipped: Int {
-        [habits, tags, entries, events, exceptions, dayLogs].reduce(0) { $0 + $1.skipped }
+        allCounts.reduce(0) { $0 + $1.skipped }
     }
 
     public var summary: String {

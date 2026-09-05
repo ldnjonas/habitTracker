@@ -81,6 +81,13 @@ extension LocalHabitAPI {
 
             // Das Journal hängt an keinem Habit und gehört deshalb nur in eine
             // vollständige Sicherung.
+            let focusRuns = habitIds == nil
+                ? try FocusRunRow.fetchAll(db, sql: """
+                    SELECT * FROM focus_run WHERE user_id = ? AND deleted_at IS NULL
+                    ORDER BY starts_on
+                    """, arguments: [userId]).map { try $0.focus }
+                : []
+
             let dayLogs = habitIds == nil
                 ? try DayLogRow.fetchAll(db, sql: """
                     SELECT * FROM day_log WHERE user_id = ? AND deleted_at IS NULL ORDER BY date
@@ -91,7 +98,8 @@ extension LocalHabitAPI {
                 generator: generator,
                 scope: habitIds == nil ? .full : .habits,
                 habits: habits, tags: tags, entries: entries,
-                events: events, exceptions: exceptions, dayLogs: dayLogs)
+                events: events, exceptions: exceptions, dayLogs: dayLogs,
+                focusRuns: focusRuns)
         }
     }
 }
@@ -124,7 +132,7 @@ extension LocalHabitAPI {
                 // bisherige Bestand nicht mehr existiert — auch nicht als Rest,
                 // den ein späterer Sync wieder ans Licht holt.
                 for table in ["entry_event", "entry", "day_exception", "habit_tag",
-                              "habit_rule", "habit", "tag", "day_log"] {
+                              "habit_rule", "habit", "tag", "day_log", "focus_run"] {
                     try db.execute(sql: "DELETE FROM \(table)")
                 }
             }
@@ -261,6 +269,20 @@ extension LocalHabitAPI {
                 case .insert: try row.insert(db); report.dayLogs.inserted += 1
                 case .update: try row.upsert(db); report.dayLogs.updated += 1
                 case .skip: report.dayLogs.skipped += 1
+                }
+            }
+
+            // --- Fokus-Läufe. Ohne Fremdschlüssel auf Habits: ein Lauf hat
+            // stattgefunden, auch wenn ein beteiligter Habit inzwischen weg ist.
+            for focus in file.focusRuns {
+                var row = try FocusRunRow(focus)
+                row.userId = userId
+                let existing = try FocusRunRow.fetchOne(
+                    db, sql: "SELECT * FROM focus_run WHERE id = ?", arguments: [row.id])
+                switch merge(existing?.updatedAt, row.updatedAt, mode) {
+                case .insert: try row.insert(db); report.focusRuns.inserted += 1
+                case .update: try row.upsert(db); report.focusRuns.updated += 1
+                case .skip: report.focusRuns.skipped += 1
                 }
             }
 
