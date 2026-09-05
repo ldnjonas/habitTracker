@@ -27,6 +27,24 @@ function eintrag(werte: Record<string, unknown> = {}) {
 }
 
 describe("Delta lesen und schreiben", () => {
+  /// Der Fehler, den erst ein Lauf mit dem echten Client zeigte: `Entry` trägt
+  /// in Swift gar kein `userId`, die Zuordnung steht nur in der Datenbankzeile.
+  test("Der Server setzt die Zugehörigkeit selbst", () => {
+    const db = new Db();
+    schreibeDelta(db, { habits: [habit()] });
+    // Ohne userId — so wie der Swift-Client es schickt.
+    const ohne = { id: "e1", habitId: "h1", date: "2026-09-03", value: 1, source: "manual",
+                   createdAt: "2026-09-03T08:00:00.000Z", updatedAt: "2026-09-03T08:00:00.000Z" };
+    assert.equal(schreibeDelta(db, { entries: [ohne] }).angenommen, 1);
+    assert.equal((leseDelta(db, 0).entries[0] as any).userId, "local");
+
+    // Und eine fremde Angabe wird überschrieben, nicht übernommen.
+    schreibeDelta(db, { entries: [{ ...ohne, userId: "jemand-anders",
+                                    updatedAt: "2026-09-03T09:00:00.000Z" }] });
+    assert.equal((leseDelta(db, 0).entries[0] as any).userId, "local");
+    db.schliesse();
+  });
+
   test("Ein Habit überlebt den Rundlauf samt Regeln und Tags", () => {
     const db = new Db();
     schreibeDelta(db, { tags: [{
@@ -201,7 +219,10 @@ describe("Über HTTP", () => {
       method: "POST", url: "/sync", headers: kopf, payload: { habits: [habit()] } });
     assert.equal(hoch.statusCode, 200);
     assert.equal(hoch.json().angenommen, 1);
+    assert.equal(hoch.json().habits, undefined, "nur der Bericht, kein Delta");
 
+    // Die autoritative Fassung kommt beim nächsten Abholen — die Zeile liegt
+    // jetzt über dem Cursor des Clients.
     const runter = await app.inject({ method: "GET", url: "/sync?since=0", headers: kopf });
     assert.equal(runter.json().habits.length, 1);
     await app.close();

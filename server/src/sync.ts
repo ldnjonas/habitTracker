@@ -14,6 +14,10 @@ export type Delta = Record<string, unknown[]> & {
 /// und niemand käme darauf, dass das die Ursache ist.
 const UHR_TOLERANZ_MS = 5 * 60 * 1000;
 
+/// Solange es nur ein statisches Token gibt, ist der Nutzer eine Konstante —
+/// dieselbe, die der Client vor dem ersten Login benutzt (`Habit.localUserId`).
+export const NUTZER = process.env.HABIT_USER ?? "local";
+
 // MARK: - Umformen
 
 function ausDatenbank(zeile: Zeile, tabelle: Tabelle): Record<string, unknown> {
@@ -99,7 +103,9 @@ export type Bericht = { angenommen: number; verworfen: number; nextSeq: number }
 /// Der Server vergibt die Sequenznummer und setzt `updatedAt` auf **seine**
 /// Zeit. Die Uhr eines Clients ist nicht vertrauenswürdig, und genau sie
 /// entscheidet bei Last-Write-Wins.
-export function schreibeDelta(db: Db, delta: Delta, jetzt = new Date()): Bericht {
+export function schreibeDelta(
+  db: Db, delta: Delta, jetzt = new Date(), nutzer = NUTZER,
+): Bericht {
   let angenommen = 0;
   let verworfen = 0;
 
@@ -108,7 +114,7 @@ export function schreibeDelta(db: Db, delta: Delta, jetzt = new Date()): Bericht
       const zeilen = delta[tabelle.schluessel];
       if (!Array.isArray(zeilen)) continue;
       for (const roh of zeilen) {
-        if (schreibeZeile(db, tabelle, roh as Record<string, unknown>, jetzt)) angenommen++;
+        if (schreibeZeile(db, tabelle, roh as Record<string, unknown>, jetzt, nutzer)) angenommen++;
         else verworfen++;
       }
     }
@@ -118,8 +124,15 @@ export function schreibeDelta(db: Db, delta: Delta, jetzt = new Date()): Bericht
 }
 
 function schreibeZeile(
-  db: Db, tabelle: Tabelle, roh: Record<string, unknown>, jetzt: Date,
+  db: Db, tabelle: Tabelle, roh: Record<string, unknown>, jetzt: Date, nutzer: string,
 ): boolean {
+  // Wem die Zeile gehört, bestimmt der Server aus dem Token — nicht der Client.
+  //
+  // Zwei Gründe. Erstens tragen einige Domänentypen gar kein `userId`: ein
+  // `Entry` in Swift kennt nur seinen Habit, die Zuordnung steht in der
+  // Datenbankzeile. Zweitens dürfte ein Client sonst Zeilen für einen anderen
+  // Nutzer schreiben, sobald es mehr als einen gibt.
+  if (tabelle.spalten.some((s) => s.feld === "userId")) roh = { ...roh, userId: nutzer };
   const schluesselWerte = tabelle.primaer.map((spalte) => {
     const feld = tabelle.spalten.find((s) => s.spalte === spalte)!.feld;
     return roh[feld];

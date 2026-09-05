@@ -191,6 +191,27 @@ extension LocalHabitAPI {
     }
 
     static let backfillKey = "backfill_limit_days"
+    static let serverKey = "server_url"
+
+    /// Die Serveradresse. **Nicht** das Token — das liegt im Schlüsselbund.
+    public func serverURL() throws -> String? {
+        try dbQueue.read { db in try Self.readSetting(Self.serverKey, db: db) }
+    }
+
+    public func setServerURL(_ url: String?) throws {
+        try dbQueue.write { db in
+            if let url {
+                try db.execute(sql: """
+                    INSERT INTO app_setting (key, value, updated_at, dirty) VALUES (?, ?, ?, 1)
+                    ON CONFLICT (key) DO UPDATE SET value = excluded.value,
+                                                    updated_at = excluded.updated_at, dirty = 1
+                    """, arguments: [Self.serverKey, url, Date()])
+            } else {
+                try db.execute(sql: "DELETE FROM app_setting WHERE key = ?",
+                               arguments: [Self.serverKey])
+            }
+        }
+    }
     static let defaultBackfillLimitDays = 7
 
     static func readSetting(_ key: String, db: Database) throws -> String? {

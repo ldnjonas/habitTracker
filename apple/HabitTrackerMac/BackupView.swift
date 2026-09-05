@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import HabitCore
 import HabitStore
+import HabitSync
 import HabitUI
 
 /// Eine Sicherungsdatei für `.fileExporter`.
@@ -37,6 +38,8 @@ struct BackupView: View {
     @State private var selection: Set<UUID> = []
     @State private var exportsSelection = false
 
+    @State private var serverEingabe = ""
+    @State private var tokenEingabe = ""
     @State private var pending: BackupFile?
     @State private var importMode: ImportMode = .merge
     @State private var lastReport: ImportReport?
@@ -45,6 +48,7 @@ struct BackupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                syncSection
                 exportSection
                 importSection
                 if let lastReport { reportSection(lastReport) }
@@ -56,6 +60,7 @@ struct BackupView: View {
             .padding(20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { if serverEingabe.isEmpty { serverEingabe = state.serverURL } }
         .navigationTitle("Sicherung")
         .fileExporter(isPresented: $showExporter, document: exportDocument,
                       contentType: .json, defaultFilename: exportFilename) { result in
@@ -73,6 +78,53 @@ struct BackupView: View {
             Button("OK") { problem = nil }
         } message: {
             Text(problem ?? "")
+        }
+    }
+
+    // MARK: - Abgleich
+
+    private var syncSection: some View {
+        card("Abgleich") {
+            if state.abgleichEingerichtet {
+                LabeledContent("Server", value: state.serverURL)
+                if let status = state.syncStatus {
+                    LabeledContent("Zuletzt", value: status)
+                }
+                if let zeit = state.letzterAbgleich {
+                    LabeledContent("Zeitpunkt",
+                                   value: zeit.formatted(date: .omitted, time: .shortened))
+                }
+                HStack {
+                    Button("Jetzt abgleichen") { Task { await state.syncNow() } }
+                        .disabled(state.syncLäuft)
+                    if state.syncLäuft { ProgressView().controlSize(.small) }
+                    Spacer()
+                    Button("Trennen", role: .destructive) { state.trenneAbgleich() }
+                        .controlSize(.small)
+                }
+            } else {
+                if state.abgleichBrauchtToken {
+                    Label("Die Adresse ist gespeichert, das Token nicht mehr lesbar. Auf dem Mac passiert das nach einem Neubau: der Schlüsselbund bindet den Zugriff an die Signatur der App.",
+                          systemImage: "key.slash")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("Ohne Server bleibt alles auf diesem Mac. Mit Server sehen iPhone und Mac denselben Stand — der Server verwahrt nur Zeilen, gerechnet wird weiter hier.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextField("https://…", text: $serverEingabe)
+                    .textFieldStyle(.roundedBorder)
+                SecureField("Token", text: $tokenEingabe)
+                    .textFieldStyle(.roundedBorder)
+                Text("Das Token landet im Schlüsselbund, nicht in der Datenbank — die wandert in jede Sicherung.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Einrichten") {
+                    state.richteAbgleichEin(url: serverEingabe, token: tokenEingabe)
+                    tokenEingabe = ""
+                }
+                .disabled(serverEingabe.isEmpty || tokenEingabe.count < 16)
+            }
         }
     }
 

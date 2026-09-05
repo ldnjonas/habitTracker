@@ -52,6 +52,10 @@ struct HabitTrackerApp: App {
                 .environment(state)
                 .frame(minWidth: 820, minHeight: 560)
                 .task {
+                    // Die Abgleich-Einrichtung gehört zum Programmstart, nicht
+                    // zu einem einzelnen Bildschirm: sie soll auch stehen, wenn
+                    // niemand die Sicherungsseite öffnet.
+                    await state.ladeAbgleich()
                     // Erst den Stichtag prüfen: das Fenster kann seit gestern
                     // offen gestanden haben.
                     if await !state.refreshToday() { await state.reload() }

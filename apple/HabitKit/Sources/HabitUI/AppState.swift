@@ -1,6 +1,7 @@
 import SwiftUI
 import HabitCore
 import HabitStore
+import HabitSync
 
 /// Beobachtbarer Zustand für alle Views.
 ///
@@ -44,6 +45,85 @@ public final class AppState {
     /// Der Tag, für den das Journal-Blatt offen ist.
     public var dayLogEditorDate: CalendarDate?
 
+    // MARK: - Abgleich
+
+    /// Serveradresse. Leer heißt: kein Abgleich eingerichtet.
+    public var serverURL: String = ""
+    public private(set) var syncLäuft = false
+    public private(set) var syncStatus: String?
+    public private(set) var letzterAbgleich: Date?
+
+    private var engine: SyncEngine?
+
+    /// Die lokale Datenbank, falls dahinter eine steckt.
+    ///
+    /// Serveradresse und Abgleich gehören nicht ins `HabitAPI`-Protokoll: ein
+    /// rein entfernter Client hätte keine Adresse zu speichern und nichts
+    /// abzugleichen. Deshalb hier die Prüfung statt einer Erweiterung dort.
+    private var lokal: LocalHabitAPI? { api as? LocalHabitAPI }
+
+    /// Richtet den Abgleich ein und legt das Token im Schlüsselbund ab.
+    ///
+    /// Nicht in der Datenbank: die Datei liegt unverschlüsselt im
+    /// Anwendungsordner und wandert in jede Sicherung. Ein Zugangsschlüssel,
+    /// der mit dem Backup den Rechner verlässt, ist keiner.
+    public func richteAbgleichEin(url: String, token: String) {
+        let sauber = url.trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let ziel = URL(string: sauber), ziel.scheme != nil else {
+            errorMessage = "Das ist keine gültige Adresse: \(url)"
+            return
+        }
+        do {
+            try TokenStore.speichere(token, fuer: sauber)
+            serverURL = sauber
+            try? lokal?.setServerURL(sauber)
+            baueEngine()
+            syncStatus = "Eingerichtet"
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func trenneAbgleich() {
+        TokenStore.loesche(fuer: serverURL)
+        try? lokal?.setServerURL(nil)
+        serverURL = ""
+        engine = nil
+        syncStatus = nil
+    }
+
+    private func baueEngine() {
+        guard let ziel = URL(string: serverURL),
+              let token = TokenStore.lese(fuer: serverURL),
+              let store = lokal else { engine = nil; return }
+        engine = SyncEngine(
+            store: store,
+            transport: HTTPSyncTransport(config: ServerConfig(baseURL: ziel, token: token)))
+    }
+
+    public var abgleichEingerichtet: Bool { engine != nil }
+
+    /// Adresse bekannt, Token fehlt.
+    public var abgleichBrauchtToken: Bool { !serverURL.isEmpty && engine == nil }
+
+    public func syncNow() async {
+        guard let engine else {
+            syncStatus = "Kein Server eingerichtet"
+            return
+        }
+        syncLäuft = true
+        defer { syncLäuft = false }
+        do {
+            let ergebnis = try await engine.sync()
+            syncStatus = ergebnis.summary
+            letzterAbgleich = Date()
+            await reload()
+        } catch {
+            syncStatus = "Fehlgeschlagen: \(error)"
+        }
+    }
+
     /// Geladener Zeitraum. Ein Jahr rückwärts deckt die Heatmap ab.
     private var loadedFrom: CalendarDate
     private var loadedTo: CalendarDate
@@ -74,6 +154,21 @@ public final class AppState {
         loadedTo = max(loadedTo, jetzt)
         await reload()
         return true
+    }
+
+    /// Holt die gespeicherte Serveradresse und baut die Engine, falls beides da ist.
+    public func ladeAbgleich() async {
+        serverURL = (try? lokal?.serverURL()) ?? nil ?? ""
+        guard !serverURL.isEmpty else { return }
+        baueEngine()
+        if engine == nil {
+            // Adresse da, Token nicht. Häufigster Grund auf dem Mac: die App
+            // ist nur ad-hoc signiert, und der Schlüsselbund bindet den Zugriff
+            // an die Signatur — nach einem Neubau ist sie eine andere. Das muss
+            // dastehen, sonst sieht es aus, als wäre nie etwas eingerichtet
+            // worden.
+            syncStatus = "Token nicht lesbar — bitte neu eingeben"
+        }
     }
 
     public func reload() async {

@@ -23,13 +23,15 @@ export function baueServer(db: Db, token: string) {
       return leseDelta(db, since, limit);
     });
 
+    // Antwortet nur mit dem Bericht, nicht mit einem Delta.
+    //
+    // Die autoritativen Werte — gestutzte Zeitstempel, vergebene
+    // Sequenznummern — holt der Client mit dem folgenden `GET` ohnehin ab: die
+    // gerade geschriebenen Zeilen liegen dann über seinem Cursor. Sie hier
+    // zusätzlich mitzuschicken wäre eine zweite Fassung derselben Wahrheit.
     geschuetzt.post("/sync", async (anfrage) => {
       const delta = anfrage.body as Delta;
-      const bericht = schreibeDelta(db, delta ?? {});
-      // Der Client bekommt zurück, was der Server daraus gemacht hat — mit
-      // seinen Zeitstempeln und Sequenznummern. Er übernimmt diese Fassung,
-      // statt seiner eigenen zu vertrauen.
-      return { ...bericht, ...leseDelta(db, bericht.nextSeq - bericht.angenommen) };
+      return schreibeDelta(db, delta ?? {});
     });
   });
 

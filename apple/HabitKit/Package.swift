@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "HabitCore", targets: ["HabitCore"]),
         .library(name: "HabitStore", targets: ["HabitStore"]),
+        .library(name: "HabitSync", targets: ["HabitSync"]),
         .library(name: "HabitUI", targets: ["HabitUI"]),
     ],
     dependencies: [
@@ -25,15 +26,19 @@ let package = Package(
             name: "HabitStore",
             dependencies: ["HabitCore", .product(name: "GRDB", package: "GRDB.swift")]
         ),
+        // Abgleich mit dem Server. Kennt kein UI und keine Domänenlogik: er
+        // schiebt Zeilen hin und her und führt einen Cursor.
+        .target(name: "HabitSync", dependencies: ["HabitCore", "HabitStore"]),
         // Geteilte Views für Mac und iPhone. Bedingung, damit das trägt:
         // kein NSColor/UIColor, keine AppKit- oder UIKit-Importe, alles
         // Plattformspezifische hinter #if os(macOS).
         .target(
             name: "HabitUI",
-            dependencies: ["HabitCore", "HabitStore"],
+            dependencies: ["HabitCore", "HabitStore", "HabitSync"],
             resources: [.process("Resources")]
         ),
         .testTarget(name: "HabitCoreTests", dependencies: ["HabitCore"]),
         .testTarget(name: "HabitStoreTests", dependencies: ["HabitStore"]),
+        .testTarget(name: "HabitSyncTests", dependencies: ["HabitSync", "HabitStore"]),
     ]
 )
