@@ -41,6 +41,10 @@ nach dem Hinzufügen neuer Dateien `xcodegen generate` erneut ausführen.
 Die Datenbank liegt unter
 `~/Library/Application Support/HabitTracker/habits.sqlite`.
 
+Das App-Icon wird erzeugt, nicht gemalt — `python3 tools/make-app-icon.py`
+schreibt alle zehn Größen in den Asset-Katalog. Zeigt das Dock danach noch das
+alte, hält LaunchServices es fest: `touch <App>.app && killall Dock`.
+
 ## Fokus
 
 Ein Fokus ist ein selbst gesetztes Fenster — typischerweise sieben Tage — in dem

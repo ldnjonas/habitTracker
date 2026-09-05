@@ -47,6 +47,9 @@ targets:
         PRODUCT_NAME: Habit Tracker
         PRODUCT_BUNDLE_IDENTIFIER: de.jonasreinhard.habittracker.mac
         GENERATE_INFOPLIST_FILE: "YES"
+        # Ohne das trägt die App das generische Platzhalter-Symbol — im Dock,
+        # im Programmwechsler und in jedem System-Dialog.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
         # Ohne Sandbox, damit die Datenbank ohne Entitlement in
