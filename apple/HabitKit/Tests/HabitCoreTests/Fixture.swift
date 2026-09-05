@@ -26,7 +26,8 @@ struct Fixture: Decodable, Sendable {
         let longestStreak: Int?
         let completedCount: Int?
         let evaluatedCount: Int?
-        let completionRate: Double?
+        /// Wie `trend` doppelt optional — siehe dort.
+        let completionRate: Double??
         /// Nur die aufgeführten Tage werden geprüft, nicht der ganze Zeitraum.
         let days: [String: String]?
         let weekdayBreakdown: [String: Double]?
@@ -50,7 +51,9 @@ struct Fixture: Decodable, Sendable {
             longestStreak = try c.decodeIfPresent(Int.self, forKey: .longestStreak)
             completedCount = try c.decodeIfPresent(Int.self, forKey: .completedCount)
             evaluatedCount = try c.decodeIfPresent(Int.self, forKey: .evaluatedCount)
-            completionRate = try c.decodeIfPresent(Double.self, forKey: .completionRate)
+            completionRate = c.contains(.completionRate)
+                ? .some(try c.decodeIfPresent(Double.self, forKey: .completionRate))
+                : nil
             days = try c.decodeIfPresent([String: String].self, forKey: .days)
             weekdayBreakdown = try c.decodeIfPresent([String: Double].self, forKey: .weekdayBreakdown)
             trend = c.contains(.trend)
@@ -92,8 +95,24 @@ struct Fixture: Decodable, Sendable {
 
     // MARK: - Laden
 
-    /// `spec/fixtures/` relativ zu dieser Quelldatei — vier Ebenen hoch zum Repo-Wurzelverzeichnis.
-    static var directory: URL {
+    static var directory: URL { FixtureFiles.directory("stats") }
+
+    static func loadAll() throws -> [Fixture] {
+        try FixtureFiles.load("stats")
+    }
+}
+
+/// Wo die geteilten Fixtures liegen und wie sie geladen werden.
+///
+/// Nach Art getrennt (`stats/`, `overview/`, `focus/`, …), weil die Arten
+/// verschiedene Formen haben: ein Übersichts-Fixture beschreibt mehrere Habits,
+/// ein Statistik-Fixture genau einen. Eine gemeinsame Form für alles wäre eine,
+/// bei der überall die Hälfte der Felder leer stünde.
+enum FixtureFiles {
+
+    /// `spec/fixtures/` relativ zu dieser Quelldatei — fünf Ebenen hoch zum
+    /// Repo-Wurzelverzeichnis.
+    static var root: URL {
         URL(fileURLWithPath: #filePath)          // …/Tests/HabitCoreTests/Fixture.swift
             .deletingLastPathComponent()          // …/Tests/HabitCoreTests
             .deletingLastPathComponent()          // …/Tests
@@ -103,16 +122,24 @@ struct Fixture: Decodable, Sendable {
             .appendingPathComponent("spec/fixtures")
     }
 
-    static func loadAll() throws -> [Fixture] {
-        let urls = try FileManager.default
-            .contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+    static func directory(_ art: String) -> URL {
+        root.appendingPathComponent(art)
+    }
+
+    /// Die JSON-Dateien einer Art, nach Namen sortiert — die Reihenfolge legt
+    /// fest, in welcher die Tests laufen und benannt werden.
+    static func files(_ art: String) throws -> [URL] {
+        try FileManager.default
+            .contentsOfDirectory(at: directory(art), includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
 
+    static func load<T: Decodable>(_ art: String) throws -> [T] {
         let decoder = JSONDecoder()
-        return try urls.map { url in
+        return try files(art).map { url in
             do {
-                return try decoder.decode(Fixture.self, from: Data(contentsOf: url))
+                return try decoder.decode(T.self, from: Data(contentsOf: url))
             } catch {
                 throw FixtureError.undecodable(url.lastPathComponent, error)
             }

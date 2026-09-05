@@ -44,10 +44,16 @@ struct FixtureTests {
             #expect(result.evaluatedCount == expected,
                     "\(label): evaluatedCount — erwartet \(expected), war \(result.evaluatedCount)")
         }
-        if let expected = e.completionRate {
-            let actual = try #require(result.completionRate, "\(label): completionRate fehlt")
-            #expect(abs(actual - expected) < 1e-9,
-                    "\(label): completionRate — erwartet \(expected), war \(actual)")
+        // Wie bei `trend` zwei Ebenen von „fehlt": Schlüssel nicht vorhanden =
+        // nicht prüfen, Schlüssel mit null = es muss nil herauskommen.
+        if let expectedRate = e.completionRate {
+            if let expected = expectedRate {
+                let actual = try #require(result.completionRate, "\(label): completionRate fehlt")
+                #expect(abs(actual - expected) < 1e-9,
+                        "\(label): completionRate — erwartet \(expected), war \(actual)")
+            } else {
+                #expect(result.completionRate == nil, "\(label): completionRate müsste nil sein")
+            }
         } else if e.evaluatedCount == 0 {
             #expect(result.completionRate == nil, "\(label): completionRate müsste nil sein")
         }
