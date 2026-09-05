@@ -480,3 +480,242 @@ struct MigrationTests {
         #expect(habits[0].id == habit.id)
     }
 }
+
+// MARK: - Kaskadierte Löschung
+
+import GRDB
+
+/// Rohzugriff auf die Grabsteine — von außen ist nicht sichtbar, ob eine Zeile
+/// weich gelöscht wurde oder nie existiert hat, und genau das ist hier die Frage.
+private extension LocalHabitAPI {
+    func tombstones(_ table: String) async throws -> [String: String?] {
+        try await dbQueue.read { db in
+            var result: [String: String?] = [:]
+            for row in try Row.fetchAll(db, sql: """
+                SELECT rowid, deleted_with FROM "\(table)" WHERE deleted_at IS NOT NULL
+                """) {
+                result["\(row["rowid"] as Int64)"] = row["deleted_with"] as String?
+            }
+            return result
+        }
+    }
+
+    func liveCount(_ table: String) async throws -> Int {
+        try await dbQueue.read { db in
+            try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM "\(table)" WHERE deleted_at IS NULL
+                """) ?? 0
+        }
+    }
+}
+
+/// Ein Habit, an dem jede abhängige Tabelle etwas hängen hat.
+private func makeFullyPopulatedHabit(_ store: LocalHabitAPI) async throws -> (Habit, HabitCore.Tag) {
+    let tag = try await store.createTag(name: "Gesundheit", colorHex: "#34C759")
+    var habit = try await store.createHabit(dailyDraft("Sport", tracksTime: true))
+    habit = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+    // Zweite Regel, damit habit_rule mehr als eine Zeile hat.
+    habit = try await store.setRule(habitId: habit.id,
+                                    HabitRule(effectiveFrom: CalendarDate(iso: "2026-09-01")!,
+                                              schedule: .weekdays([.monday, .friday])))
+
+    _ = try await store.setEvent(EntryEvent(habitId: habit.id,
+                                            date: CalendarDate(iso: "2026-09-03")!,
+                                            at: Date(), value: 1))
+    try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: "2026-09-02")!,
+                             value: 1, note: nil, source: .manual)
+    _ = try await store.addException(DayException(habitId: habit.id,
+                                                  date: CalendarDate(iso: "2026-09-01")!,
+                                                  kind: .frozen))
+    return (habit, tag)
+}
+
+@Suite("Kaskadierte Löschung")
+struct CascadeTests {
+
+    @Test("Ein gelöschter Habit nimmt alles mit, was an ihm hängt")
+    func deleteCascades() async throws {
+        let store = try makeStore()
+        let (habit, _) = try await makeFullyPopulatedHabit(store)
+
+        for table in LocalHabitAPI.habitOwnedTables {
+            #expect(try await store.liveCount(table) > 0, "\(table) war schon vorher leer")
+        }
+
+        try await store.deleteHabit(id: habit.id)
+
+        // Ohne Grabstein wäre die Löschung für den Sync unsichtbar und die
+        // Zeilen blieben auf einem zweiten Gerät stehen.
+        for table in LocalHabitAPI.habitOwnedTables {
+            #expect(try await store.liveCount(table) == 0, "\(table) hat lebende Zeilen behalten")
+            let marks = try await store.tombstones(table)
+            #expect(!marks.isEmpty, "\(table) hat keine Grabsteine")
+            #expect(marks.values.allSatisfy { $0 == habit.id.uuidString },
+                    "\(table) trägt nicht die Herkunft des Habits")
+        }
+    }
+
+    @Test("Wiederherstellen holt die kaskadierten Zeilen zurück")
+    func restoreBringsBackCascade() async throws {
+        let store = try makeStore()
+        let (habit, tag) = try await makeFullyPopulatedHabit(store)
+        try await store.deleteHabit(id: habit.id)
+
+        let item = try #require(try await store.trash().first { $0.table == .habit })
+        try await store.restore(item)
+
+        let restored = try #require(try await store.habit(id: habit.id))
+        #expect(restored.rules.count == 2, "die Zeitplan-Historie fehlt")
+        #expect(restored.tagIds == [tag.id])
+
+        let entries = try await store.entries(habitId: habit.id,
+                                              from: CalendarDate(iso: "2026-09-01")!, to: today)
+        #expect(entries.count == 2, "Tageswert und abgeleiteter Event-Tag fehlen")
+        #expect(try await store.events(habitId: habit.id,
+                                       from: CalendarDate(iso: "2026-09-01")!, to: today).count == 1)
+        #expect(try await store.exceptions(from: CalendarDate(iso: "2026-09-01")!,
+                                           to: today).count == 1)
+
+        for table in LocalHabitAPI.habitOwnedTables {
+            #expect(try await store.tombstones(table).isEmpty, "\(table) blieb gelöscht")
+        }
+    }
+
+    /// Der Grund, warum die Herkunft überhaupt festgehalten wird.
+    @Test("Ein vorher einzeln gelöschter Eintrag bleibt nach dem Wiederherstellen weg")
+    func individualDeletionSurvivesRestore() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        let verworfen = CalendarDate(iso: "2026-09-02")!
+        let behalten = CalendarDate(iso: "2026-09-03")!
+        for date in [verworfen, behalten] {
+            try await store.setEntry(habitId: habit.id, date: date, value: 1,
+                                     note: nil, source: .manual)
+        }
+
+        // Der Nutzer räumt einen Tag selbst weg …
+        try await store.deleteEntry(habitId: habit.id, date: verworfen)
+        // … und löscht später den ganzen Habit.
+        try await store.deleteHabit(id: habit.id)
+
+        let item = try #require(try await store.trash().first { $0.table == .habit })
+        try await store.restore(item)
+
+        let entries = try await store.entries(habitId: habit.id,
+                                              from: CalendarDate(iso: "2026-09-01")!, to: today)
+        #expect(entries.map(\.date) == [behalten],
+                "der eigenhändig gelöschte Tag ist zurückgekommen")
+    }
+
+    @Test("Der Papierkorb listet den Habit einmal, nicht jeden Eintrag")
+    func trashListsHabitOnce() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft("Sport"))
+        for day in ["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03"] {
+            try await store.setEntry(habitId: habit.id, date: CalendarDate(iso: day)!,
+                                     value: 1, note: nil, source: .manual)
+        }
+        try await store.deleteHabit(id: habit.id)
+
+        let items = try await store.trash()
+        #expect(items.count == 1, "statt eines Habits steht sein ganzer Verlauf im Papierkorb")
+        #expect(items[0].table == .habit)
+        #expect(items[0].label == "Sport")
+    }
+
+    @Test("Eine globale Ausnahme überlebt das Löschen eines Habits")
+    func globalExceptionSurvives() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        // Urlaub gilt für alle Habits und gehört keinem.
+        _ = try await store.addException(DayException(habitId: nil,
+                                                      date: CalendarDate(iso: "2026-09-02")!,
+                                                      kind: .paused, reason: "Urlaub"))
+        _ = try await store.addException(DayException(habitId: habit.id,
+                                                      date: CalendarDate(iso: "2026-09-03")!,
+                                                      kind: .frozen))
+
+        try await store.deleteHabit(id: habit.id)
+
+        let remaining = try await store.exceptions(from: CalendarDate(iso: "2026-09-01")!, to: today)
+        #expect(remaining.count == 1)
+        #expect(remaining.first?.habitId == nil)
+        #expect(remaining.first?.reason == "Urlaub")
+    }
+
+    @Test("Ein zweites Löschen stempelt die Herkunft nicht neu")
+    func deletingTwiceIsHarmless() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        let date = CalendarDate(iso: "2026-09-02")!
+        try await store.setEntry(habitId: habit.id, date: date, value: 1,
+                                 note: nil, source: .manual)
+        try await store.deleteEntry(habitId: habit.id, date: date)
+
+        try await store.deleteHabit(id: habit.id)
+        try await store.deleteHabit(id: habit.id)
+
+        // Der eigenhändig gelöschte Eintrag darf nicht nachträglich zur
+        // Kaskade erklärt werden — sonst käme er beim Wiederherstellen zurück.
+        #expect(try await store.tombstones("entry").values.allSatisfy { $0 == nil })
+
+        let item = try #require(try await store.trash().first { $0.table == .habit })
+        try await store.restore(item)
+        #expect(try await store.entries(habitId: habit.id,
+                                        from: CalendarDate(iso: "2026-09-01")!, to: today).isEmpty)
+    }
+
+    /// Auf `habit_tag` wirken zwei Ursachen — deshalb reicht ein bloßes
+    /// „wurde kaskadiert" nicht aus.
+    @Test("Ein Habit holt keine Zuordnung zurück, deren Tag noch gelöscht ist")
+    func restoringHabitKeepsDeletedTagUnlinked() async throws {
+        let store = try makeStore()
+        let tag = try await store.createTag(name: "Gesundheit", colorHex: "#34C759")
+        var habit = try await store.createHabit(dailyDraft())
+        habit = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+
+        try await store.deleteTag(id: tag.id)
+        try await store.deleteHabit(id: habit.id)
+
+        let item = try #require(try await store.trash().first { $0.table == .habit })
+        try await store.restore(item)
+
+        let restored = try #require(try await store.habit(id: habit.id))
+        #expect(restored.tagIds.isEmpty, "der Habit trägt einen Tag, den es nicht mehr gibt")
+    }
+
+    @Test("Ein wiederhergestellter Tag bringt seine Zuordnungen zurück")
+    func restoringTagRelinksHabits() async throws {
+        let store = try makeStore()
+        let tag = try await store.createTag(name: "Gesundheit", colorHex: "#34C759")
+        var habit = try await store.createHabit(dailyDraft())
+        habit = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+
+        try await store.deleteTag(id: tag.id)
+        #expect(try await store.habit(id: habit.id)?.tagIds.isEmpty == true)
+
+        let item = try #require(try await store.trash().first { $0.table == .tag })
+        try await store.restore(item)
+
+        #expect(try await store.habit(id: habit.id)?.tagIds == [tag.id])
+    }
+
+    @Test("Ein neu vergebener Tag hebt einen kaskadierten Grabstein auf")
+    func retaggingClearsCascadeMark() async throws {
+        let store = try makeStore()
+        let tag = try await store.createTag(name: "Gesundheit", colorHex: "#34C759")
+        var habit = try await store.createHabit(dailyDraft())
+        habit = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+
+        try await store.deleteHabit(id: habit.id)
+        let item = try #require(try await store.trash().first { $0.table == .habit })
+        try await store.restore(item)
+
+        // Ab- und wieder anhängen: die Zuordnung darf keine alte Herkunft behalten.
+        _ = try await store.setTags(habitId: habit.id, tagIds: [])
+        _ = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+
+        #expect(try await store.habit(id: habit.id)?.tagIds == [tag.id])
+        #expect(try await store.tombstones("habit_tag").values.allSatisfy { $0 == nil })
+    }
+}

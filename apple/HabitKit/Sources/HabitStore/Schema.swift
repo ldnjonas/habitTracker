@@ -196,6 +196,28 @@ enum Schema {
                 """)
         }
 
+        // Löscht man einen Habit, verschwinden seine Einträge mit ihm. Weil weich
+        // gelöscht wird, greift `ON DELETE CASCADE` dabei nicht — die Grabsteine
+        // müssen von Hand gesetzt werden, sonst kommt die Löschung auf einem
+        // zweiten Gerät nie an.
+        //
+        // `deleted_with` hält fest, *womit zusammen* eine Zeile gelöscht wurde.
+        // Ein bloßes Ja/Nein reichte nicht: auf `habit_tag` wirken zwei
+        // Ursachen — das Löschen des Habits und das Löschen des Tags. Ohne die
+        // Herkunft holte das Wiederherstellen eines Habits auch Zuordnungen
+        // zurück, deren Tag noch im Papierkorb liegt.
+        //
+        // Die Spalte ist nur aussagekräftig, solange `deleted_at` gesetzt ist:
+        // jedes Wiederherstellen räumt sie mit ab.
+        migrator.registerMigration("v2-cascade-marker") { db in
+            for table in ["entry", "entry_event", "day_exception",
+                          "habit_rule", "habit_tag"] {
+                try db.alter(table: table) { t in
+                    t.add(column: "deleted_with", .text)
+                }
+            }
+        }
+
         return migrator
     }
 }

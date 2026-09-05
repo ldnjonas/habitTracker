@@ -111,6 +111,9 @@ struct HabitRuleRow: SnakeCaseRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// Die `id` der Zeile, mit der diese zusammen gelöscht wurde — `nil` bei
+    /// eigenständiger Löschung. Nur aussagekräftig, solange `deletedAt` steht.
+    var deletedWith: String?
     var serverSeq: Int64?
     var dirty: Bool
 
@@ -125,6 +128,7 @@ struct HabitRuleRow: SnakeCaseRecord {
         createdAt = now
         updatedAt = now
         deletedAt = nil
+        deletedWith = nil
         serverSeq = nil
         dirty = true
     }
@@ -194,6 +198,9 @@ struct HabitTagRow: SnakeCaseRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// Die `id` der Zeile, mit der diese zusammen gelöscht wurde — `nil` bei
+    /// eigenständiger Löschung. Nur aussagekräftig, solange `deletedAt` steht.
+    var deletedWith: String?
     var serverSeq: Int64?
     var dirty: Bool
 }
@@ -213,6 +220,9 @@ struct EntryRow: SnakeCaseRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// Die `id` der Zeile, mit der diese zusammen gelöscht wurde — `nil` bei
+    /// eigenständiger Löschung. Nur aussagekräftig, solange `deletedAt` steht.
+    var deletedWith: String?
     var serverSeq: Int64?
     var dirty: Bool
 
@@ -227,6 +237,7 @@ struct EntryRow: SnakeCaseRecord {
         createdAt = entry.createdAt
         updatedAt = entry.updatedAt
         deletedAt = entry.deletedAt
+        deletedWith = nil
         serverSeq = nil
         dirty = true
     }
@@ -253,6 +264,9 @@ struct EntryEventRow: SnakeCaseRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// Die `id` der Zeile, mit der diese zusammen gelöscht wurde — `nil` bei
+    /// eigenständiger Löschung. Nur aussagekräftig, solange `deletedAt` steht.
+    var deletedWith: String?
     var serverSeq: Int64?
     var dirty: Bool
 
@@ -267,6 +281,7 @@ struct EntryEventRow: SnakeCaseRecord {
         createdAt = event.createdAt
         updatedAt = event.updatedAt
         deletedAt = event.deletedAt
+        deletedWith = nil
         serverSeq = nil
         dirty = true
     }
@@ -292,6 +307,9 @@ struct DayExceptionRow: SnakeCaseRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    /// Die `id` der Zeile, mit der diese zusammen gelöscht wurde — `nil` bei
+    /// eigenständiger Löschung. Nur aussagekräftig, solange `deletedAt` steht.
+    var deletedWith: String?
     var serverSeq: Int64?
     var dirty: Bool
 
@@ -305,6 +323,7 @@ struct DayExceptionRow: SnakeCaseRecord {
         createdAt = exception.createdAt
         updatedAt = exception.updatedAt
         deletedAt = exception.deletedAt
+        deletedWith = nil
         serverSeq = nil
         dirty = true
     }

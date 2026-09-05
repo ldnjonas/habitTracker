@@ -120,12 +120,29 @@ public final class LocalHabitAPI: HabitAPI {
         }
     }
 
+    /// Löscht einen Habit weich — samt allem, was an ihm hängt.
+    ///
+    /// Die Fremdschlüssel tragen zwar `ON DELETE CASCADE`, das greift aber nur
+    /// bei einer harten Löschung. Hier wird weich gelöscht, also müssen die
+    /// Grabsteine der abhängigen Zeilen von Hand gesetzt werden: eine Löschung
+    /// ohne Grabstein ist für den Sync unsichtbar und käme auf einem zweiten
+    /// Gerät nie an — dort stünden die Einträge eines längst gelöschten Habits.
+    ///
+    /// Alle Zeilen bekommen denselben Zeitstempel und in `deleted_with` die id
+    /// des Habits. Daran erkennt `restore` später genau die Zeilen, die mit
+    /// diesem Habit gefallen sind — und lässt die in Ruhe, die der Nutzer vorher
+    /// einzeln gelöscht hatte.
     public func deleteHabit(id: UUID) async throws {
         try await dbQueue.write { db in
+            let now = Date()
             try db.execute(sql: """
                 UPDATE habit SET deleted_at = ?, updated_at = ?, dirty = 1
                 WHERE id = ? AND deleted_at IS NULL
-                """, arguments: [Date(), Date(), id.uuidString])
+                """, arguments: [now, now, id.uuidString])
+            // War der Habit schon gelöscht, darf ein zweiter Aufruf die
+            // Herkunft der Kinder nicht neu stempeln.
+            guard db.changesCount > 0 else { return }
+            try Self.cascadeDelete(habitId: id, at: now, db: db)
         }
     }
 
@@ -155,7 +172,8 @@ public final class LocalHabitAPI: HabitAPI {
             guard remaining > 0 else { throw HabitStoreError.needsAtLeastOneRule }
 
             try db.execute(sql: """
-                UPDATE habit_rule SET deleted_at = ?, updated_at = ?, dirty = 1
+                UPDATE habit_rule
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = NULL
                 WHERE habit_id = ? AND effective_from = ? AND deleted_at IS NULL
                 """, arguments: [Date(), Date(), habitId.uuidString, effectiveFrom.description])
             guard db.changesCount > 0 else {
@@ -200,15 +218,18 @@ public final class LocalHabitAPI: HabitAPI {
 
     public func deleteTag(id: UUID) async throws {
         try await dbQueue.write { db in
+            let now = Date()
             try db.execute(sql: """
                 UPDATE tag SET deleted_at = ?, updated_at = ?, dirty = 1 WHERE id = ?
-                """, arguments: [Date(), Date(), id.uuidString])
+                """, arguments: [now, now, id.uuidString])
             // Die Zuordnungen brauchen eigene Grabsteine, sonst käme das
-            // Entfernen auf anderen Geräten nie an.
+            // Entfernen auf anderen Geräten nie an. `deleted_with` trennt sie
+            // von Zuordnungen, die mit einem Habit gefallen sind.
             try db.execute(sql: """
-                UPDATE habit_tag SET deleted_at = ?, updated_at = ?, dirty = 1
+                UPDATE habit_tag
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = ?
                 WHERE tag_id = ? AND deleted_at IS NULL
-                """, arguments: [Date(), Date(), id.uuidString])
+                """, arguments: [now, now, id.uuidString, id.uuidString])
         }
     }
 
@@ -272,14 +293,17 @@ public final class LocalHabitAPI: HabitAPI {
         let today = currentDate()
         try await dbQueue.write { db in
             try Self.checkBackfill(date: date, today: today, db: db)
+            let now = Date()
             try db.execute(sql: """
-                UPDATE entry SET deleted_at = ?, updated_at = ?, dirty = 1
+                UPDATE entry
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = NULL
                 WHERE habit_id = ? AND date = ? AND deleted_at IS NULL
-                """, arguments: [Date(), Date(), habitId.uuidString, date.description])
+                """, arguments: [now, now, habitId.uuidString, date.description])
             try db.execute(sql: """
-                UPDATE entry_event SET deleted_at = ?, updated_at = ?, dirty = 1
+                UPDATE entry_event
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = NULL
                 WHERE habit_id = ? AND date = ? AND deleted_at IS NULL
-                """, arguments: [Date(), Date(), habitId.uuidString, date.description])
+                """, arguments: [now, now, habitId.uuidString, date.description])
         }
     }
 
@@ -316,7 +340,9 @@ public final class LocalHabitAPI: HabitAPI {
                 SELECT * FROM entry_event WHERE id = ? AND deleted_at IS NULL
                 """, arguments: [eventId.uuidString]) else { return }
             try db.execute(sql: """
-                UPDATE entry_event SET deleted_at = ?, updated_at = ?, dirty = 1 WHERE id = ?
+                UPDATE entry_event
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = NULL
+                WHERE id = ?
                 """, arguments: [Date(), Date(), eventId.uuidString])
             try Self.recomputeEntry(habitId: habitId, date: row.date, userId: userId, db: db)
         }
@@ -369,7 +395,9 @@ public final class LocalHabitAPI: HabitAPI {
     public func deleteException(id: UUID) async throws {
         try await dbQueue.write { db in
             try db.execute(sql: """
-                UPDATE day_exception SET deleted_at = ?, updated_at = ?, dirty = 1 WHERE id = ?
+                UPDATE day_exception
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = NULL
+                WHERE id = ?
                 """, arguments: [Date(), Date(), id.uuidString])
         }
     }

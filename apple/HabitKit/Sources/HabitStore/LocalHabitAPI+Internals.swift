@@ -55,6 +55,46 @@ extension LocalHabitAPI {
         }
     }
 
+    // MARK: - Kaskadierte Löschung
+
+    /// Die Tabellen, deren Zeilen ohne ihren Habit sinnlos sind.
+    ///
+    /// Bewusst eine Liste und keine fünf ausgeschriebenen Anweisungen: Kaskade
+    /// und Rücknahme müssen sich über dieselbe Menge einig sein, sonst bliebe
+    /// beim Wiederherstellen eine Tabelle zurück.
+    static let habitOwnedTables = ["entry", "entry_event", "day_exception",
+                                   "habit_rule", "habit_tag"]
+
+    /// Setzt Grabsteine auf alles, was an diesem Habit hängt.
+    ///
+    /// `WHERE habit_id = ?` schließt globale Ausnahmen (Urlaub, `habit_id IS
+    /// NULL`) automatisch aus — die gehören keinem Habit und überleben ihn.
+    ///
+    /// Bereits gelöschte Zeilen bleiben unangetastet: sie hat der Nutzer selbst
+    /// weggeräumt, und ein späteres Wiederherstellen des Habits soll sie nicht
+    /// zurückholen.
+    static func cascadeDelete(habitId: UUID, at now: Date, db: Database) throws {
+        for table in habitOwnedTables {
+            try db.execute(sql: """
+                UPDATE "\(table)"
+                SET deleted_at = ?, updated_at = ?, dirty = 1, deleted_with = ?
+                WHERE habit_id = ? AND deleted_at IS NULL
+                """, arguments: [now, now, habitId.uuidString, habitId.uuidString])
+        }
+    }
+
+    /// Nimmt genau die Löschungen zurück, die mit `originId` zusammen geschahen.
+    static func cascadeRestore(originId: String, tables: [String], db: Database) throws {
+        let now = Date()
+        for table in tables {
+            try db.execute(sql: """
+                UPDATE "\(table)"
+                SET deleted_at = NULL, updated_at = ?, dirty = 1, deleted_with = NULL
+                WHERE deleted_with = ?
+                """, arguments: [now, originId])
+        }
+    }
+
     // MARK: - Einträge
 
     static func upsertEntry(
@@ -72,6 +112,7 @@ extension LocalHabitAPI {
             existing.source = source
             existing.updatedAt = now
             existing.deletedAt = nil       // ein Wiedereintrag hebt den Grabstein auf
+            existing.deletedWith = nil
             existing.dirty = true
             try existing.update(db)
             return existing.entry
@@ -181,8 +222,13 @@ extension LocalHabitAPI {
                                        deletedAt: row.deletedAt!, label: row.name))
             }
 
+            // `deleted_with IS NULL` lässt die Einträge weg, die mit ihrem
+            // Habit gefallen sind: sie kommen mit ihm zurück, nicht einzeln.
+            // Sonst stünde statt eines gelöschten Habits dessen ganzer Verlauf
+            // im Papierkorb.
             for row in try EntryRow.fetchAll(db, sql: """
-                SELECT * FROM entry WHERE deleted_at IS NOT NULL AND deleted_at >= ?
+                SELECT * FROM entry
+                WHERE deleted_at IS NOT NULL AND deleted_at >= ? AND deleted_with IS NULL
                 ORDER BY deleted_at DESC
                 """, arguments: [cutoff]) {
                 items.append(TrashItem(table: .entry, rowId: row.id,
@@ -202,6 +248,11 @@ extension LocalHabitAPI {
         }
     }
 
+    /// Holt eine Zeile zurück — und mit ihr, was mit ihr zusammen gefallen ist.
+    ///
+    /// Maßgeblich ist `deleted_with`, nicht die Zugehörigkeit: ein Eintrag, den
+    /// der Nutzer vor dem Löschen des Habits einzeln weggeräumt hatte, bleibt
+    /// weg. Zurück kommt nur, was ohne sein Zutun verschwunden ist.
     public func restore(_ item: TrashItem) async throws {
         try await dbQueue.write { db in
             let table = item.table.rawValue
@@ -209,6 +260,18 @@ extension LocalHabitAPI {
                 UPDATE "\(table)" SET deleted_at = NULL, updated_at = ?, dirty = 1
                 WHERE id = ?
                 """, arguments: [Date(), item.rowId])
+
+            switch item.table {
+            case .habit:
+                try Self.cascadeRestore(originId: item.rowId,
+                                        tables: Self.habitOwnedTables, db: db)
+            case .tag:
+                // Ein Tag reißt nur seine Zuordnungen mit.
+                try Self.cascadeRestore(originId: item.rowId,
+                                        tables: ["habit_tag"], db: db)
+            case .entry, .entryEvent, .dayException, .dayLog:
+                break
+            }
         }
     }
 }
