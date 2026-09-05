@@ -41,6 +41,7 @@ struct ContentView: View {
             )
             .frame(minWidth: 480, minHeight: 620)
         }
+        .background { todayShortcuts }
         .sheet(item: $state.dayLogEditorDate) { date in
             DayLogEditor(
                 date: date,
@@ -144,6 +145,30 @@ struct ContentView: View {
             }
             .help("Neuen Habit anlegen (⌘N)")
         }
+    }
+
+    /// Ziffern 1–9 haken die heutigen Habits ab.
+    ///
+    /// Hier und nicht in `TodayView`: nur hier ist bekannt, ob gerade ein Blatt
+    /// offen ist. Eine blanke Ziffer als Kürzel darf nicht feuern, während
+    /// jemand in ein Textfeld tippt.
+    @ViewBuilder
+    private var todayShortcuts: some View {
+        if selection == .today || selection == nil, !isPresentingSheet {
+            ForEach(Array(state.todaysHabits.prefix(9).enumerated()), id: \.element.id) { index, habit in
+                Button("") { Task { await state.toggle(habit, on: state.today) } }
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [])
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        }
+    }
+
+    private var isPresentingSheet: Bool {
+        editing != nil
+            || state.habitPendingDeletion != nil
+            || state.exceptionEditorDate != nil
+            || state.dayLogEditorDate != nil
     }
 
     @ViewBuilder

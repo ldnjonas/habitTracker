@@ -18,6 +18,16 @@ struct HabitListView: View {
                     .onTapGesture { onSelect(habit) }
                     .contextMenu { actions(habit) }
             }
+            // Nur ohne Filter: sonst ließe sich die Verschiebung nicht auf die
+            // Gesamtreihenfolge übertragen.
+            .onMove(perform: state.canReorder
+                    ? { source, ziel in Task { await state.moveHabits(from: source, to: ziel) } }
+                    : nil)
+
+            if !state.canReorder && state.filteredHabits.count > 1 {
+                Text("Zum Umsortieren den Filter aufheben.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .navigationTitle("Alle Habits")
         .toolbar {

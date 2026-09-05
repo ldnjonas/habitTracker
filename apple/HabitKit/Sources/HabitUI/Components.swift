@@ -191,10 +191,13 @@ public struct HabitRowView: View {
     public var tags: [Tag]
     public var onToggle: () -> Void
     public var onAdjust: (Double) -> Void
+    /// Ziffer des Tastenkürzels, falls es eines gibt. Ohne sichtbare Ziffer
+    /// wäre das Kürzel eine Funktion, von der man wissen muss, dass es sie gibt.
+    public var shortcutNumber: Int?
 
     public init(
         habit: Habit, date: CalendarDate, status: DayStatus, value: Double,
-        streak: Int, trend: Trend?, tags: [Tag],
+        streak: Int, trend: Trend?, tags: [Tag], shortcutNumber: Int? = nil,
         onToggle: @escaping () -> Void, onAdjust: @escaping (Double) -> Void
     ) {
         self.habit = habit
@@ -204,6 +207,7 @@ public struct HabitRowView: View {
         self.streak = streak
         self.trend = trend
         self.tags = tags
+        self.shortcutNumber = shortcutNumber
         self.onToggle = onToggle
         self.onAdjust = onAdjust
     }
@@ -213,6 +217,13 @@ public struct HabitRowView: View {
 
     public var body: some View {
         HStack(spacing: 12) {
+            if let shortcutNumber {
+                Text("\(shortcutNumber)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 10)
+                    .help("Mit der Taste \(shortcutNumber) abhaken")
+            }
             Button(action: onToggle) {
                 ProgressRing(progress: progress, color: color, symbol: habit.symbol, size: 30)
             }

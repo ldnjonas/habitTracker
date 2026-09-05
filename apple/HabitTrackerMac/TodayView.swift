@@ -130,7 +130,9 @@ struct TodayView: View {
     }
 
     private func habitRow(_ habit: Habit) -> some View {
-        HabitRowView(
+        // Die ersten neun tragen eine Ziffer — mehr Tasten gibt es nicht.
+        let nummer = state.todaysHabits.firstIndex(of: habit).map { $0 + 1 }
+        return HabitRowView(
             habit: habit,
             date: state.today,
             status: state.status(habit, on: state.today),
@@ -139,6 +141,7 @@ struct TodayView: View {
                                 to: state.today).currentStreak,
             trend: state.trend(habit),
             tags: habit.tagIds.compactMap(state.tag),
+            shortcutNumber: (nummer ?? 10) <= 9 ? nummer : nil,
             onToggle: { Task { await state.toggle(habit, on: state.today) } },
             onAdjust: { delta in Task { await state.adjust(habit, on: state.today, by: delta) } }
         )

@@ -79,6 +79,20 @@ Sonderfälle, dass ein Wochenziel keinen einzelnen Tag reißen kann und Urlaub
 den Tag herausnimmt. Ein Streak Freeze rettet einen Fokus dagegen nicht — er ist
 das strengere Versprechen.
 
+## Bedienung
+
+Rechtsklick auf einen Habit — in der Seitenleiste, in „Heute" oder in „Alle
+Habits" — öffnet Bearbeiten, Archivieren und Löschen; dieselben Aktionen liegen
+auf dem „…"-Knopf jeder Zeile und in der Toolbar der Detailansicht.
+
+In „Heute" haken die Ziffern **1 bis 9** die Habits der Reihe nach ab; die Ziffer
+steht in der Zeile, sonst wüsste niemand davon. In „Alle Habits" lässt sich die
+Reihenfolge ziehen — nur ohne aktiven Filter, weil eine Verschiebung in einer
+gefilterten Liste sich nicht auf die Gesamtreihenfolge übertragen ließe.
+
+Das Menüleisten-Symbol zeigt den Tagesstand und hakt ab, ohne das Fenster zu
+öffnen.
+
 ## Journal und Zusammenhänge
 
 Stimmung, Energie und Schlaf lassen sich je Tag erfassen — alles freiwillig, denn

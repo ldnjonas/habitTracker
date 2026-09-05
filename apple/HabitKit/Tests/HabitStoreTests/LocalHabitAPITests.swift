@@ -960,3 +960,39 @@ struct ExceptionTests {
         #expect(summaries[date]?.isPerfect == true)
     }
 }
+
+@Suite("Reihenfolge")
+struct SortOrderTests {
+
+    @Test("Die Liste folgt der gesetzten Reihenfolge")
+    func listFollowsSortOrder() async throws {
+        let store = try makeStore()
+        var angelegt: [Habit] = []
+        for name in ["Anton", "Berta", "Cäsar"] {
+            angelegt.append(try await store.createHabit(dailyDraft(name)))
+        }
+        // Beim Anlegen zählt die Reihenfolge hoch.
+        #expect(try await store.listHabits(includeArchived: false).map(\.name)
+                == ["Anton", "Berta", "Cäsar"])
+
+        // Umdrehen.
+        for (index, habit) in angelegt.reversed().enumerated() {
+            _ = try await store.updateHabit(id: habit.id, HabitPatch(sortOrder: index))
+        }
+        #expect(try await store.listHabits(includeArchived: false).map(\.name)
+                == ["Cäsar", "Berta", "Anton"])
+    }
+
+    @Test("Gleiche Reihenfolge entscheidet der Name")
+    func nameBreaksTies() async throws {
+        let store = try makeStore()
+        for name in ["Zebra", "Ameise"] {
+            let habit = try await store.createHabit(dailyDraft(name))
+            _ = try await store.updateHabit(id: habit.id, HabitPatch(sortOrder: 0))
+        }
+        // Ohne diesen zweiten Schlüssel wäre die Liste bei gleichem Wert
+        // beliebig sortiert und spränge zwischen zwei Aufrufen.
+        #expect(try await store.listHabits(includeArchived: false).map(\.name)
+                == ["Ameise", "Zebra"])
+    }
+}

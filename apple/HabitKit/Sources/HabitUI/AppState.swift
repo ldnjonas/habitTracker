@@ -567,6 +567,30 @@ public final class AppState {
         return result
     }
 
+    /// Ob sich die Liste gerade sinnvoll umsortieren lässt.
+    ///
+    /// Bei aktivem Filter zeigt sie nicht alle Habits, und eine Verschiebung
+    /// darin ließe sich nicht auf die Gesamtreihenfolge übertragen — die
+    /// ausgeblendeten behielten ihre alten Nummern und schöben sich beim
+    /// nächsten Aufheben des Filters dazwischen.
+    public var canReorder: Bool { selectedTagId == nil && !showsArchived }
+
+    /// Verschiebt Habits und schreibt die neue Reihenfolge.
+    public func moveHabits(from source: IndexSet, to destination: Int) async {
+        guard canReorder else { return }
+        var geordnet = habits.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+        geordnet.move(fromOffsets: source, toOffset: destination)
+        do {
+            // Nur schreiben, was sich wirklich verschoben hat.
+            for (index, habit) in geordnet.enumerated() where habit.sortOrder != index {
+                _ = try await api.updateHabit(id: habit.id, HabitPatch(sortOrder: index))
+            }
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
     public func archive(_ habit: Habit) async {
         await updateHabit(habit.id, HabitPatch(archivedOn: .some(today)))
     }
