@@ -614,31 +614,47 @@ paths:
   /insights/correlations:
     get:
       tags: [insights]
-      summary: Zusammenhang zwischen Habits und Stimmung
+      summary: Zusammenhänge zwischen Habits und dem Journal
       description: |
-        Vergleicht die mittlere Stimmung an erfüllten und an verpassten Tagen.
-        Liefert immer `n` mit und erst ab n ≥ 10 je Seite ein Ergebnis —
-        eine Aussage aus drei Tagen wäre keine.
+        Vergleicht je Habit und Journal-Größe die Tage, an denen er erledigt
+        war, mit denen, an denen er verpasst wurde (Pearson über eine
+        Ja/Nein-Größe). Ausnahmen und Tage ohne Journal-Eintrag fallen heraus,
+        statt als Null zu zählen.
 
-        Das ist eine Beobachtung, keine Kausalaussage.
+        **Die Zurückhaltung ist Teil der Funktion.** Bei wenigen Tagen findet
+        man in Zufallsrauschen immer irgendeinen Zusammenhang; wird er
+        angezeigt, glaubt man ihn. Drei Hürden, und wer eine reißt, bekommt
+        kein abgeschwächtes Ergebnis, sondern keins:
+
+        1. Mindestens 14 gemeinsame Tage und je 5 in beiden Gruppen — ein
+           Mittelwert aus zwei Werten ist keiner.
+        2. Der Betrag von `r` muss über der **Zufallsgrenze für diese
+           Datenmenge** liegen, nicht über einer festen Zahl:
+           `r_min = max(0,2; t / √(n − 2 + t²))` mit `t = 3` (etwa p < 0,01,
+           zweiseitig). Das sind 0,58 bei 20 Tagen und 0,29 bei 100.
+        3. Nie unter 0,2, egal wie viele Tage — bei sehr großen Mengen wird
+           auch ein belangloser Zusammenhang rechnerisch bedeutsam.
+
+        Die strenge Schwelle ist Absicht: über acht Habits und drei Größen
+        werden zwei Dutzend Paare gleichzeitig geprüft, und bei p < 0,05 wäre
+        ein Fehltreffer schon rechnerisch zu erwarten. In der Erprobung mit
+        Zufallsdaten meldete eine feste Schwelle von 0,2 sechs „Befunde“ —
+        mit dieser Regel keinen.
+
+        Die Clients formulieren das Ergebnis als Satz und **nennen den
+        Vorbehalt mit**: es fällt zusammen, ob das eine das andere bewirkt,
+        sagen diese Zahlen nicht.
       parameters:
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
       responses:
         "200":
-          description: Liste
+          description: Befunde, der deutlichste zuerst
           content:
             application/json:
               schema:
                 type: array
-                items:
-                  type: object
-                  properties:
-                    habitId: { type: string, format: uuid }
-                    moodWhenCompleted: { type: number }
-                    moodWhenMissed: { type: number }
-                    nCompleted: { type: integer }
-                    nMissed: { type: integer }
+                items: { $ref: "#/components/schemas/Correlation" }
 
   /freezes:
     get:
@@ -1598,3 +1614,26 @@ components:
             - { type: string, format: uuid }
             - { type: "null" }
         createdAt: { type: string, format: date-time }
+
+    JournalMetric:
+      type: string
+      enum: [mood, energy, sleepHours]
+
+    CorrelationStrength:
+      type: string
+      enum: [weak, moderate, strong]
+      description: Schwellen auf dem Betrag von r — 0,2 / 0,4 / 0,6.
+
+    Correlation:
+      type: object
+      properties:
+        habitId: { type: string, format: uuid }
+        metric: { $ref: "#/components/schemas/JournalMetric" }
+        coefficient: { type: number }
+        strength: { $ref: "#/components/schemas/CorrelationStrength" }
+        dayCount:
+          type: integer
+          description: Tage, an denen Habit und Größe beide feststanden.
+        completedDays: { type: integer }
+        completedAverage: { type: number }
+        missedAverage: { type: number }

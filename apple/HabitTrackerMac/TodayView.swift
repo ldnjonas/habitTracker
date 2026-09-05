@@ -40,6 +40,15 @@ struct TodayView: View {
                 }
             }
             Button {
+                state.dayLogEditorDate = state.today
+            } label: {
+                Label("Journal …", systemImage: "book.closed")
+            }
+            .help(state.dayLog(on: state.today) == nil
+                  ? "Stimmung, Energie und Schlaf für heute eintragen"
+                  : "Journal von heute bearbeiten")
+
+            Button {
                 state.exceptionEditorDate = state.today
             } label: {
                 Label("Ausnahme …", systemImage: "beach.umbrella")

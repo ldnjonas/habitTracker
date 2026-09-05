@@ -40,6 +40,19 @@ struct OverviewView: View {
                     dayDetail(selectedDay)
                 }
 
+                if !state.dayLogs.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Zusammenhänge").font(.headline)
+                        CorrelationCard(
+                            correlations: state.correlations,
+                            habitName: { state.habit($0)?.name },
+                            habitColor: { Color(hex: state.habit($0)?.colorHex ?? "#8E8E93") })
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+                }
+
                 if state.habits.isEmpty {
                     ContentUnavailableView(
                         "Noch keine Habits", systemImage: "square.grid.3x3",
@@ -156,6 +169,30 @@ struct OverviewView: View {
         }
     }
 
+    private func hasContent(_ log: DayLog) -> Bool {
+        log.mood != nil || log.energy != nil || log.sleepHours != nil || log.note != nil
+    }
+
+    private func journalRow(_ log: DayLog) -> some View {
+        HStack(spacing: 14) {
+            if let mood = log.mood {
+                Label("\(mood)/5", systemImage: "face.smiling")
+            }
+            if let energy = log.energy {
+                Label("\(energy)/5", systemImage: "bolt.fill")
+            }
+            if let schlaf = log.sleepHours {
+                Label(formatMinutes(schlaf * 60), systemImage: "bed.double.fill")
+            }
+            if let note = log.note {
+                Text(note).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+        }
+        .font(.callout)
+        .monospacedDigit()
+    }
+
     /// Der Zeitraum des laufenden Fokus, damit er im Bild wiederzufinden ist.
     private var focusWindow: ClosedRange<CalendarDate>? {
         state.activeFocus.map { $0.run.startsOn...$0.run.endsOn }
@@ -248,7 +285,14 @@ struct OverviewView: View {
 
             Divider()
 
+            if let log = state.dayLog(on: date), hasContent(log) {
+                journalRow(log)
+            }
+
             HStack {
+                Button(state.dayLog(on: date) == nil ? "Journal …" : "Journal bearbeiten …") {
+                    state.dayLogEditorDate = date
+                }
                 Button("Ausnahme eintragen …") { state.exceptionEditorDate = date }
                 if !state.exceptions(on: date).isEmpty {
                     Button("Ausnahme aufheben", role: .destructive) {

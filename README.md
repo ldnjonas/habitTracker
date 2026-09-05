@@ -79,6 +79,25 @@ Sonderfälle, dass ein Wochenziel keinen einzelnen Tag reißen kann und Urlaub
 den Tag herausnimmt. Ein Streak Freeze rettet einen Fokus dagegen nicht — er ist
 das strengere Versprechen.
 
+## Journal und Zusammenhänge
+
+Stimmung, Energie und Schlaf lassen sich je Tag erfassen — alles freiwillig, denn
+ein Journal, das vollständig sein muss, führt niemand. Nicht Erfasstes fällt aus
+der Auswertung heraus, statt als Null zu zählen.
+
+Daraus sucht die Übersicht Zusammenhänge und formuliert sie als Satz: „An Tagen
+mit Lesen schläfst du im Schnitt 1 h 27 min länger.“
+
+**Die Zurückhaltung ist der schwierige Teil.** Bei wenigen Tagen findet man in
+Zufallsrauschen immer irgendetwas, und angezeigt wird es geglaubt. Die Hürde für
+`r` richtet sich deshalb nach der Datenmenge — 0,58 bei 20 Tagen, 0,29 bei 100 —
+und nicht nach einer festen Zahl. Das ist streng gewählt, weil über acht Habits
+und drei Größen zwei Dutzend Paare gleichzeitig geprüft werden.
+
+Der Nutzen zeigte sich sofort: mit einer festen Schwelle von 0,2 meldete die
+Auswertung an Zufallsdaten sechs „Befunde“, darunter einen für eine Größe, die
+als Zufallszahl erzeugt worden war. Mit der datenabhängigen Hürde: keinen.
+
 ## Streak Freezes
 
 Ein durchgezogener Fokus-Lauf bringt einen Freeze, höchstens drei auf dem Konto.

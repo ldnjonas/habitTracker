@@ -22,6 +22,7 @@ public final class AppState {
     /// Einträge des geladenen Zeitraums, für schnellen Zugriff je Habit und Tag.
     public private(set) var entries: [UUID: [CalendarDate: Entry]] = [:]
     public private(set) var exceptions: [DayException] = []
+    public private(set) var dayLogs: [DayLog] = []
     public private(set) var focusRuns: [FocusRun] = []
     /// Verfügbare Streak Freezes.
     public private(set) var freezeBalance: Int = 0
@@ -40,6 +41,8 @@ public final class AppState {
     public var habitPendingDeletion: Habit?
     /// Der Tag, für den das Ausnahme-Blatt offen ist.
     public var exceptionEditorDate: CalendarDate?
+    /// Der Tag, für den das Journal-Blatt offen ist.
+    public var dayLogEditorDate: CalendarDate?
 
     /// Geladener Zeitraum. Ein Jahr rückwärts deckt die Heatmap ab.
     private var loadedFrom: CalendarDate
@@ -92,6 +95,7 @@ public final class AppState {
                 loadedFrom = min(loadedFrom, earliest)
             }
             exceptions = try await api.exceptions(from: loadedFrom, to: loadedTo)
+            dayLogs = try await api.dayLogs(from: loadedFrom, to: loadedTo)
 
             let all = try await api.entries(habitId: nil, from: loadedFrom, to: loadedTo)
             var grouped: [UUID: [CalendarDate: Entry]] = [:]
@@ -413,6 +417,32 @@ public final class AppState {
         } catch {
             errorMessage = String(describing: error)
         }
+    }
+
+    // MARK: - Journal
+
+    public func dayLog(on date: CalendarDate) -> DayLog? {
+        dayLogs.first { $0.date == date && $0.deletedAt == nil }
+    }
+
+    public func setDayLog(_ log: DayLog) async {
+        do {
+            _ = try await api.setDayLog(log)
+            await reload()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    /// Zusammenhänge über den geladenen Zeitraum.
+    ///
+    /// Berechnet und nicht zwischengespeichert: die Hürden in
+    /// `CorrelationRule` sorgen dafür, dass meist gar nichts herauskommt, und
+    /// die Rechnung ist eine Schleife über wenige hundert Tage.
+    public var correlations: [Correlation] {
+        HabitCore.correlations(habits: habits, entries: allEntries, dayLogs: dayLogs,
+                               exceptions: exceptions,
+                               from: loadedFrom, to: today, today: today)
     }
 
     // MARK: - Freezes

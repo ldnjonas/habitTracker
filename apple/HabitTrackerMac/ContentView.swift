@@ -41,6 +41,16 @@ struct ContentView: View {
             )
             .frame(minWidth: 480, minHeight: 620)
         }
+        .sheet(item: $state.dayLogEditorDate) { date in
+            DayLogEditor(
+                date: date,
+                existing: state.dayLog(on: date),
+                onSave: { log in
+                    state.dayLogEditorDate = nil
+                    Task { await state.setDayLog(log) }
+                },
+                onCancel: { state.dayLogEditorDate = nil })
+        }
         .sheet(item: $state.exceptionEditorDate) { date in
             ExceptionEditor(
                 habits: state.habits,
