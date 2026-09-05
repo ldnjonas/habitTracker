@@ -14,7 +14,7 @@ apple/
     HabitStore      lokale SQLite-Datenbank hinter dem HabitAPI-Protokoll
     HabitSync       SyncEngine gegen den Server
     HabitUI         geteilte SwiftUI-Views
-server/             Fastify + Postgres — Sync-Hub
+server/             Fastify + SQLite — Sync-Hub (siehe server/README.md)
 web/                React + Vite — einziger rein remote arbeitender Client
 ```
 
@@ -78,6 +78,23 @@ wenn alles erledigt ist, was an ihm *verpflichtend* war. Daraus folgt ohne
 Sonderfälle, dass ein Wochenziel keinen einzelnen Tag reißen kann und Urlaub
 den Tag herausnimmt. Ein Streak Freeze rettet einen Fokus dagegen nicht — er ist
 das strengere Versprechen.
+
+## Abgleich
+
+`server/` ist der Knotenpunkt zwischen Mac, iPhone und später der WebApp. Er
+hält keine Logik — Streaks und Auswertungen rechnet jeder Client selbst; der
+Server verwahrt Zeilen und sagt, was sich seit wann geändert hat.
+
+Eine einzige Folge über alle Tabellen: der Cursor eines Clients ist genau diese
+Zahl. Grabsteine wandern mit, sonst käme eine Löschung nie beim anderen Gerät
+an. Und der Server setzt die Zeitstempel selbst — bei Last-Write-Wins
+entscheidet genau der, und die Uhr eines Clients ist nicht vertrauenswürdig.
+
+Entgegen dem ursprünglichen Plan **SQLite statt Postgres**: das Client-Schema
+ist SQLite, damit werden beide textlich vergleichbar statt bloß ähnlich; ein
+Nutzer mit drei Geräten braucht nichts von dem, was Postgres besser kann; und
+das Hosting ist eine Datei statt einer verwalteten Datenbank. Details und der
+Weg zurück stehen in `server/README.md`.
 
 ## Bedienung
 

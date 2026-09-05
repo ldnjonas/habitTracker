@@ -53,6 +53,21 @@ extension LocalHabitAPI {
                                   serverSeq: nil, dirty: true)
             try row.upsert(db)   // hebt einen früheren Grabstein wieder auf
         }
+
+        try touchHabit(habitId, at: now, db: db)
+    }
+
+    /// Hebt `updated_at` des Habits an und markiert ihn als zu übertragen.
+    ///
+    /// Nötig, weil Regeln und Tag-Zuordnungen beim Abgleich **mit** dem Habit
+    /// wandern und keine eigene Sequenznummer tragen (siehe server/README.md).
+    /// Ohne diesen Anstoß bliebe eine Zeitplanänderung für den Server
+    /// unsichtbar: der Habit sähe unverändert aus, und das zweite Gerät bekäme
+    /// weiter den alten Zeitplan.
+    static func touchHabit(_ habitId: UUID, at now: Date, db: Database) throws {
+        try db.execute(sql: """
+            UPDATE habit SET updated_at = ?, dirty = 1 WHERE id = ? AND deleted_at IS NULL
+            """, arguments: [now, habitId.uuidString])
     }
 
     // MARK: - Kaskadierte Löschung

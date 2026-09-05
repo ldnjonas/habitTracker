@@ -1372,6 +1372,24 @@ components:
 
     SyncDelta:
       type: object
+      description: |
+        Dieselben Formen wie die Sicherungsdatei: ein Habit kommt **samt seinen
+        Regeln und Tags**, nicht als drei getrennte Tabellen. Die Clients haben
+        die passenden Typen damit schon, und die Zerlegung in Tabellen bleibt
+        Sache des Servers.
+
+        Daraus folgt eine Pflicht für die Clients: **jede Änderung an Regeln
+        oder Tags muss das `updatedAt` des Habits anheben.** Die Zeilen tragen
+        keine eigene `serverSeq`, sie wandern mit dem Habit — bliebe sein
+        Zeitstempel stehen, wäre die Änderung beim Abgleich unsichtbar.
+
+        Grabsteine sind enthalten: Zeilen mit gesetztem `deletedAt`. Ohne sie
+        käme eine Löschung nie beim anderen Gerät an.
+
+        `nextSeq` ist der neue Cursor, `hasMore` sagt, ob weitergelesen werden
+        muss. Die Grenze `limit` schneidet an einer Sequenznummer ab, nicht an
+        einer Zeilenzahl je Tabelle — sonst hielte ein Client ein Delta für
+        vollständig, das mitten in einer Änderung endet.
       properties:
         habits: { type: array, items: { $ref: "#/components/schemas/Habit" } }
         tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
@@ -1379,6 +1397,13 @@ components:
         events: { type: array, items: { $ref: "#/components/schemas/EntryEvent" } }
         exceptions: { type: array, items: { $ref: "#/components/schemas/DayException" } }
         dayLogs: { type: array, items: { $ref: "#/components/schemas/DayLog" } }
+        focusRuns: { type: array, items: { $ref: "#/components/schemas/FocusRun" } }
+        freezes:
+          type: array
+          items: { $ref: "#/components/schemas/FreezeEntry" }
+          description: |
+            Nimmt am Last-Write-Wins nicht teil — eine vorhandene Buchung bleibt
+            unverändert. Eine Korrektur ist eine Gegenbuchung.
         nextSeq: { type: integer, format: int64 }
         hasMore: { type: boolean }
 

@@ -155,6 +155,7 @@ public final class LocalHabitAPI: HabitAPI {
             // Upsert über den natürlichen Schlüssel (habit_id, effective_from):
             // „Ziel ab heute ändern" legt an, „Tippfehler korrigieren" ersetzt.
             try ruleRow.upsert(db)
+            try Self.touchHabit(habitId, at: Date(), db: db)
             return try Self.assemble(row, db: db)
         }
     }
@@ -179,6 +180,7 @@ public final class LocalHabitAPI: HabitAPI {
             guard db.changesCount > 0 else {
                 throw HabitStoreError.ruleNotFound(habitId: habitId, effectiveFrom: effectiveFrom)
             }
+            try Self.touchHabit(habitId, at: Date(), db: db)
             return try Self.assemble(row, db: db)
         }
     }

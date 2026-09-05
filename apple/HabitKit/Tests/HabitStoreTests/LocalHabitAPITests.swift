@@ -1042,3 +1042,53 @@ struct MoveTests {
         #expect(danach.map(\.sortOrder) == [0, 1, 2, 3])
     }
 }
+
+@Suite("Anstoß für den Abgleich")
+struct TouchTests {
+
+    /// Regeln und Tags wandern beim Abgleich **mit** dem Habit und tragen keine
+    /// eigene Sequenznummer. Ohne diesen Anstoß bliebe eine Zeitplanänderung
+    /// für den Server unsichtbar — das zweite Gerät bekäme weiter den alten Plan.
+    @Test("Eine neue Regel hebt das updatedAt des Habits")
+    func settingRuleTouchesHabit() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        let vorher = try #require(try await store.habit(id: habit.id)).updatedAt
+
+        try await Task.sleep(for: .milliseconds(20))
+        _ = try await store.setRule(habitId: habit.id,
+                                    HabitRule(effectiveFrom: today, schedule: .timesPerWeek(3)))
+
+        let nachher = try #require(try await store.habit(id: habit.id)).updatedAt
+        #expect(nachher > vorher)
+    }
+
+    @Test("Das Entfernen einer Regel ebenso")
+    func deletingRuleTouchesHabit() async throws {
+        let store = try makeStore()
+        var habit = try await store.createHabit(dailyDraft(from: "2026-08-01"))
+        habit = try await store.setRule(habitId: habit.id,
+                                        HabitRule(effectiveFrom: CalendarDate(iso: "2026-09-01")!,
+                                                  schedule: .timesPerWeek(3)))
+        let vorher = try #require(try await store.habit(id: habit.id)).updatedAt
+
+        try await Task.sleep(for: .milliseconds(20))
+        _ = try await store.deleteRule(habitId: habit.id,
+                                       effectiveFrom: CalendarDate(iso: "2026-09-01")!)
+
+        #expect(try #require(try await store.habit(id: habit.id)).updatedAt > vorher)
+    }
+
+    @Test("Eine geänderte Tag-Menge ebenso")
+    func settingTagsTouchesHabit() async throws {
+        let store = try makeStore()
+        let habit = try await store.createHabit(dailyDraft())
+        let tag = try await store.createTag(name: "Gesundheit", colorHex: "#34C759")
+        let vorher = try #require(try await store.habit(id: habit.id)).updatedAt
+
+        try await Task.sleep(for: .milliseconds(20))
+        _ = try await store.setTags(habitId: habit.id, tagIds: [tag.id])
+
+        #expect(try #require(try await store.habit(id: habit.id)).updatedAt > vorher)
+    }
+}

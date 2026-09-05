@@ -22,3 +22,9 @@ dist/
 
 # Von XcodeGen erzeugt — die Wahrheit steht in apple/project.yml
 apple/*.xcodeproj
+
+# Server
+server/node_modules/
+server/*.sqlite
+server/*.sqlite-shm
+server/*.sqlite-wal
