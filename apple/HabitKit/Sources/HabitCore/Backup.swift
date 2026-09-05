@@ -189,6 +189,18 @@ public enum BackupProblem: Hashable, Sendable, CustomStringConvertible {
     case duplicateEntry(habitId: UUID, date: CalendarDate)
     case orphanedRows(table: String, count: Int)
 
+    /// Stabiler String für Serialisierung und die TypeScript-Fassung — dieselbe
+    /// Rolle wie `DayStatus.code` und `FocusOutcome.code`.
+    public var code: String {
+        switch self {
+        case .unsupportedVersion: "unsupportedVersion"
+        case .habitWithoutRules: "habitWithoutRules"
+        case .duplicateHabitId: "duplicateHabitId"
+        case .duplicateEntry: "duplicateEntry"
+        case .orphanedRows: "orphanedRows"
+        }
+    }
+
     /// Ob dieses Problem den Import verhindert.
     public var isFatal: Bool {
         switch self {

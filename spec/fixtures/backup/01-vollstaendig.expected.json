@@ -1,0 +1,23 @@
+{
+  "name": "Eine vollständige Sicherung, vom Mac geschrieben",
+  "canonical": true,
+  "summary": "1 Habits · 1 Tags · 1 Einträge · 1 Zeitstempel · 1 Ausnahmen · 1 Journaltage · 1 Fokus-Läufe · 1 Freeze-Buchungen",
+  "dateRange": {
+    "from": "2026-08-15",
+    "to": "2026-09-07"
+  },
+  "formatVersion": 1,
+  "scope": "full",
+  "exportedAt": "2026-08-29T10:40:00.123Z",
+  "counts": {
+    "habits": 1,
+    "tags": 1,
+    "entries": 1,
+    "events": 1,
+    "exceptions": 1,
+    "dayLogs": 1,
+    "focusRuns": 1,
+    "freezes": 1
+  },
+  "problems": []
+}

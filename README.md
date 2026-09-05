@@ -193,6 +193,18 @@ beide Implementierungen gleich bleiben, laufen beide Test-Suites gegen
 dieselben JSON-Dateien in `spec/fixtures/`. Weicht eine ab, schlagen Tests
 fehl — statt dass die Zahlen leise auseinanderlaufen.
 
-Jedes Fixture beschreibt einen Habit, seine Einträge, einen Stichtag und das
-erwartete Ergebnis. Die Erwartungswerte sind von Hand hergeleitet, nicht aus
-der Implementierung erzeugt.
+Die Erwartungswerte sind von Hand hergeleitet, nicht aus der Implementierung
+erzeugt — sonst prüften sie nur, dass sich nichts geändert hat, und nicht, dass
+etwas stimmt.
+
+Nach Art getrennt, weil die Formen verschieden sind:
+
+| Ordner | Was ein Fixture beschreibt |
+|---|---|
+| `stats/` | ein Habit, seine Einträge, ein Stichtag — Streak, Quote, Wochentage, Trend |
+| `overview/` | mehrere Habits je Tag — an einem einzelnen lässt sich die Nenner-Regel gar nicht zeigen |
+| `focus/` | einen Lauf samt Einträgen, oder fertige Ergebnisse für die Bilanz |
+| `totals/` | Sitzungen und Tageswerte, Summen nach Tag und Woche |
+| `correlations/` | ein Journal — und meistens die Erwartung, dass **nichts** berichtet wird |
+| `freeze/` | Läufe und Buchungen: Kontostand, Anspruch, Obergrenze |
+| `backup/` | eine echte Sicherungsdatei; beide Fassungen müssen sie **Byte für Byte** wieder herausgeben |

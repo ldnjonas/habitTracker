@@ -1,0 +1,19 @@
+{
+  "name": "Ein einzelner Habit ohne Verlauf — leere Listen bleiben leere Listen",
+  "canonical": true,
+  "summary": "1 Habits",
+  "dateRange": null,
+  "formatVersion": 1,
+  "scope": "habits",
+  "counts": {
+    "habits": 1,
+    "tags": 0,
+    "entries": 0,
+    "events": 0,
+    "exceptions": 0,
+    "dayLogs": 0,
+    "focusRuns": 0,
+    "freezes": 0
+  },
+  "problems": []
+}

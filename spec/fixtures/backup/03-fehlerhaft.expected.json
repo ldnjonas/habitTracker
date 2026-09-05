@@ -1,0 +1,39 @@
+{
+  "name": "Eine fehlerhafte Datei: zu neues Format, doppelter Habit, doppelter Tageswert",
+  "canonical": false,
+  "summary": "2 Habits · 2 Einträge",
+  "dateRange": {
+    "from": "2026-09-02",
+    "to": "2026-09-02"
+  },
+  "formatVersion": 2,
+  "scope": "full",
+  "counts": {
+    "habits": 2,
+    "tags": 0,
+    "entries": 2,
+    "events": 0,
+    "exceptions": 0,
+    "dayLogs": 0,
+    "focusRuns": 0,
+    "freezes": 0
+  },
+  "problems": [
+    {
+      "code": "unsupportedVersion",
+      "fatal": true
+    },
+    {
+      "code": "duplicateHabitId",
+      "fatal": true
+    },
+    {
+      "code": "habitWithoutRules",
+      "fatal": true
+    },
+    {
+      "code": "duplicateEntry",
+      "fatal": false
+    }
+  ]
+}

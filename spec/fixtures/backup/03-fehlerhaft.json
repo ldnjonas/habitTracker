@@ -1,0 +1,63 @@
+{
+  "formatVersion": 2,
+  "exportedAt": "2026-09-02T00:00:00.000Z",
+  "generator": "Fremdes Werkzeug/9",
+  "scope": "full",
+  "habits": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000A1",
+      "userId": "local",
+      "name": "Sport",
+      "kind": "binary",
+      "rules": [
+        {
+          "effectiveFrom": "2026-08-01",
+          "schedule": {
+            "kind": "daily"
+          }
+        }
+      ],
+      "colorHex": "#4F8DF7",
+      "symbol": "checkmark.circle",
+      "sortOrder": 0,
+      "tagIds": [],
+      "tracksTime": false,
+      "createdAt": "2026-08-01T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z"
+    },
+    {
+      "id": "00000000-0000-0000-0000-0000000000A1",
+      "userId": "local",
+      "name": "Sport (nochmal, ohne Zeitplan)",
+      "kind": "binary",
+      "rules": [],
+      "colorHex": "#4F8DF7",
+      "symbol": "checkmark.circle",
+      "sortOrder": 0,
+      "tagIds": [],
+      "tracksTime": false,
+      "createdAt": "2026-08-01T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z"
+    }
+  ],
+  "entries": [
+    {
+      "id": "00000000-0000-0000-0000-000000000011",
+      "habitId": "00000000-0000-0000-0000-0000000000A1",
+      "date": "2026-09-02",
+      "value": 1,
+      "source": "manual",
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "updatedAt": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000012",
+      "habitId": "00000000-0000-0000-0000-0000000000A1",
+      "date": "2026-09-02",
+      "value": 1,
+      "source": "manual",
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "updatedAt": "2026-09-02T00:00:00.000Z"
+    }
+  ]
+}

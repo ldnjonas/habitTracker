@@ -1,0 +1,129 @@
+{
+  "dayLogs" : [
+    {
+      "createdAt" : "2026-08-28T06:53:20.000Z",
+      "date" : "2026-09-02",
+      "energy" : 3,
+      "mood" : 4,
+      "note" : "gut geschlafen",
+      "sleepHours" : 7.5,
+      "updatedAt" : "2026-08-28T06:53:20.000Z",
+      "userId" : "local"
+    }
+  ],
+  "entries" : [
+    {
+      "createdAt" : "2026-08-28T06:53:20.000Z",
+      "date" : "2026-09-02",
+      "habitId" : "00000000-0000-0000-0000-000000000001",
+      "id" : "00000000-0000-0000-0000-000000000011",
+      "note" : "morgens gelaufen",
+      "source" : "manual",
+      "updatedAt" : "2026-08-28T06:53:20.007Z",
+      "value" : 45
+    }
+  ],
+  "events" : [
+    {
+      "at" : "2026-08-28T06:53:20.000Z",
+      "createdAt" : "2026-08-28T06:53:20.000Z",
+      "date" : "2026-09-02",
+      "endsAt" : "2026-08-28T07:38:20.000Z",
+      "habitId" : "00000000-0000-0000-0000-000000000001",
+      "id" : "00000000-0000-0000-0000-000000000012",
+      "source" : "manual",
+      "updatedAt" : "2026-08-28T06:53:20.000Z",
+      "value" : 45
+    }
+  ],
+  "exceptions" : [
+    {
+      "createdAt" : "2026-08-19T00:40:00.000Z",
+      "date" : "2026-08-15",
+      "id" : "00000000-0000-0000-0000-000000000013",
+      "kind" : "paused",
+      "reason" : "Urlaub",
+      "updatedAt" : "2026-08-19T00:40:00.000Z"
+    }
+  ],
+  "exportedAt" : "2026-08-29T10:40:00.123Z",
+  "focusRuns" : [
+    {
+      "createdAt" : "2026-08-27T03:06:40.000Z",
+      "endsOn" : "2026-09-07",
+      "habitIds" : [
+        "00000000-0000-0000-0000-000000000001"
+      ],
+      "id" : "00000000-0000-0000-0000-000000000003",
+      "startsOn" : "2026-09-01",
+      "title" : "Septemberwoche",
+      "updatedAt" : "2026-08-27T03:06:40.000Z",
+      "userId" : "local"
+    }
+  ],
+  "formatVersion" : 1,
+  "freezes" : [
+    {
+      "amount" : 1,
+      "createdAt" : "2026-08-28T20:46:40.000Z",
+      "focusRunId" : "00000000-0000-0000-0000-000000000003",
+      "id" : "00000000-0000-0000-0000-000000000014",
+      "reason" : "focusCompleted",
+      "userId" : "local"
+    }
+  ],
+  "generator" : "HabitTracker/1.0 (Fixture)",
+  "habits" : [
+    {
+      "colorHex" : "#4F8DF7",
+      "createdAt" : "2026-08-17T20:53:20.000Z",
+      "id" : "00000000-0000-0000-0000-000000000001",
+      "kind" : "quantity",
+      "name" : "Sport",
+      "notes" : "Kurz und regelmäßig",
+      "preferredTime" : "07:30",
+      "rules" : [
+        {
+          "effectiveFrom" : "2026-08-01",
+          "schedule" : {
+            "kind" : "daily"
+          },
+          "target" : {
+            "comparison" : "atLeast",
+            "unit" : "min",
+            "value" : 30
+          }
+        },
+        {
+          "effectiveFrom" : "2026-09-01",
+          "schedule" : {
+            "kind" : "timesPerWeek",
+            "n" : 3
+          }
+        }
+      ],
+      "sortOrder" : 1,
+      "startsOn" : "2026-08-01",
+      "symbol" : "figure.run",
+      "tagIds" : [
+        "00000000-0000-0000-0000-000000000002"
+      ],
+      "timeOfDay" : "morning",
+      "tracksTime" : true,
+      "updatedAt" : "2026-08-23T15:46:40.500Z",
+      "userId" : "local"
+    }
+  ],
+  "scope" : "full",
+  "tags" : [
+    {
+      "colorHex" : "#34C759",
+      "createdAt" : "2026-08-17T20:53:20.000Z",
+      "id" : "00000000-0000-0000-0000-000000000002",
+      "name" : "Gesundheit",
+      "sortOrder" : 0,
+      "updatedAt" : "2026-08-17T20:53:20.000Z",
+      "userId" : "local"
+    }
+  ]
+}
