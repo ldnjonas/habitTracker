@@ -24,7 +24,7 @@ cd ../server && npm start   # liefert web/dist mit aus
 Ein Ursprung, eine Adresse, kein CORS, eine Sache zum Starten. Fehlt
 `web/dist`, sagt der Server das beim Start und bleibt ein reiner API-Server.
 
-## Die Typen kommen aus dem Server
+## Die Domäne kommt aus dem Server — auch als Code
 
 `src/api/types.ts` gibt die Typen aus `server/src/domain/` weiter, statt sie mit
 `openapi-typescript` aus `spec/openapi.yaml` zu erzeugen.
@@ -35,7 +35,16 @@ Genau das erreicht der direkte Weg besser: die Domäne des Servers **ist**
 TypeScript, also gibt es keine zweite Beschreibung, die von ihr abweichen
 könnte. Eine erzeugte Fassung beschreibt nur, was der Server tun *sollte*.
 
-Alles davon ist `import type` — im gebauten Bündel landet keine Zeile.
+Dasselbe gilt für die paar **Funktionen**, die die Oberfläche wirklich selbst
+braucht: `weekday`, `addDays`, `through`, `spanRange`, `spanShift`,
+`intensityLevel`. Sie sind rein, hängen an nichts und werden beim Bauen
+herausgeschüttelt, wenn sie niemand aufruft. Sie hier nachzubauen hieße,
+Hinnants Zivilkalender ein drittes Mal zu schreiben — und die dritte Fassung
+wäre irgendwann die falsche.
+
+Was **nicht** hierher wandert, ist die Auswertung: Streaks, Quoten und
+Zusammenhänge rechnet der Server. Sonst gäbe es zwei Antworten auf dieselbe
+Frage.
 
 ## Was hier bewusst nicht steht
 
@@ -74,8 +83,26 @@ Dieselbe Heatmap wie das Mac-Icon, andere Formen: randlos statt im Squircle
 in einem Rahmen in einem Rahmen) und einmal mit 10 % Schutzzone für
 `maskable`, weil Android je nach Gerät beschneidet.
 
-## Stand
+## Was wo steht
 
-Gebaut ist das Gerüst und die Heute-Ansicht. Übersicht, Fokus und der Rest
-sagen vorerst, dass sie noch nicht gebaut sind — ein Register, das ohne
-Erklärung nichts tut, ist schlimmer als eines, das fehlt.
+| Register | Was es kann |
+|---|---|
+| **Heute** | Abhaken, Menge zählen, Verstoß melden — mit Streak und Trend je Zeile |
+| **Übersicht** | Heatmap über alle Habits: Woche · Monat · Jahr, blättern, Tagesdetail, Maßstab nach Anzahl oder Anteil |
+| **Fokus** | Läufe starten und beenden, Verlauf mit Ergebnis, Freeze-Konto |
+| **Mehr** | Alle Habits (anlegen, ändern, sortieren, archivieren, löschen) · Journal samt Zusammenhängen · Tags · Papierkorb · Sicherung · Abmelden |
+
+Ein Habit-Detail gibt es aus der Liste heraus: Jahresbild in seiner Farbe,
+Wochentagsverteilung, Streak-Kacheln, Summen und Sitzungen. Ein Tag darin
+lässt sich zum Urlaub oder Ruhetag erklären, und ein verpasster einfrieren.
+
+**Was hier bewusst fehlt:** Sitzungen von Hand anzulegen. Sie entstehen auf dem
+Mac beim Starten und Stoppen; im Browser werden sie gezeigt, aber nicht
+erfasst — ein Knopf dafür wäre auf dem Telefon eine Stoppuhr, und die will
+anders gebaut sein als ein Formular.
+
+## Wann welche Ansicht neu lädt
+
+Jede lädt beim Öffnen, und nach einer Änderung noch einmal. Wer im Editor etwas
+sichert, stößt zusätzlich alle anderen an — sonst zeigte die Heute-Ansicht noch
+den alten Namen.

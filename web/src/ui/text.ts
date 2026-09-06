@@ -6,7 +6,8 @@
 /// eine `Date` schleusen — und die kennt eine Zeitzone, die hier keine Rolle
 /// spielen darf.
 
-import type { CalendarDate, Schedule, Weekday } from "../api/types.ts";
+import type { CalendarDate, Schedule } from "../api/types.ts";
+import { weekday } from "../../../server/src/domain/calendar.ts";
 
 const MONATE = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -39,22 +40,21 @@ export function kurzesDatum(datum: CalendarDate): string {
   return `${tag}. ${MONATE[monat - 1]!.slice(0, 3)}.`;
 }
 
-/// ISO-Wochentag, ohne den Umweg über `Date`: Montag ist 1.
-export function wochentag(datum: CalendarDate): Weekday {
-  const { jahr, monat, tag } = teile(datum);
-  // Hinnants Zivilkalender, dieselbe Rechnung wie in `domain/calendar.ts`.
-  const div = (a: number, b: number) => Math.trunc(a / b);
-  const y = jahr - (monat <= 2 ? 1 : 0);
-  const era = div(y >= 0 ? y : y - 399, 400);
-  const yoe = y - era * 400;
-  const doy = div(153 * (monat + (monat > 2 ? -3 : 9)) + 2, 5) + tag - 1;
-  const doe = yoe * 365 + div(yoe, 4) - div(yoe, 100) + doy;
-  const nummer = era * 146097 + doe - 719468;
-  return ((((nummer + 3) % 7) + 7) % 7 + 1) as Weekday;
+/// „Sep. 2025" — für Zeiträume, die über einen Jahreswechsel gehen. Ohne die
+/// Jahreszahl steht dort sonst „1. Sep. – 6. Sep.", und das sind zwei Tage
+/// statt eines Jahres.
+export function monatJahr(datum: CalendarDate): string {
+  const { jahr, monat } = teile(datum);
+  return `${MONATE[monat - 1]!.slice(0, 3)}. ${jahr}`;
 }
 
+/// Der Wochentag kommt aus der Domäne des Servers — dieselbe Rechnung, die
+/// auch die Auswertung benutzt. Ihn hier nachzubauen hieße, Hinnants
+/// Zivilkalender ein drittes Mal zu schreiben.
+export { weekday as wochentag };
+
 export function langerWochentag(datum: CalendarDate): string {
-  return TAGE_LANG[wochentag(datum) - 1]!;
+  return TAGE_LANG[weekday(datum) - 1]!;
 }
 
 export function planText(plan: Schedule): string {

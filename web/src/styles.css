@@ -315,3 +315,341 @@ button {
 }
 
 .tor button[type="submit"]:disabled { opacity: 0.5; }
+
+/* ── Segmente, Knöpfe, Formulare ──────────────────────────────────── */
+
+.segmente {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--rand);
+  border-radius: 11px;
+  margin: 10px 0;
+}
+
+.segmente button {
+  flex: 1;
+  min-height: 38px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-leise);
+}
+
+.segmente button[aria-selected="true"] {
+  background: var(--karte);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.segmente.klein button { min-height: 32px; font-size: 13px; }
+
+.blaettern { display: flex; align-items: center; gap: 2px; }
+
+.blaettern button {
+  min-width: 40px;
+  min-height: 36px;
+  border-radius: 9px;
+  font-size: 15px;
+  color: var(--akzent);
+}
+
+.blaettern button:disabled { color: var(--text-leise); opacity: 0.5; }
+
+button.breit {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  border-radius: 11px;
+  border: 1px solid var(--rand);
+  background: var(--grund);
+  font-size: 15px;
+}
+
+button.breit.haupt { background: var(--akzent); color: #fff; border-color: transparent; font-weight: 600; }
+button.breit.gefahr { color: var(--rot); border-color: color-mix(in srgb, var(--rot) 40%, transparent); }
+button.breit:disabled { opacity: 0.5; }
+
+button.leise {
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  color: var(--text-leise);
+  font-size: 18px;
+}
+
+button.klein-knopf {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--akzent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.knopfreihe { display: flex; gap: 8px; margin-top: 8px; }
+.knopfreihe button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--rand);
+}
+
+.feld { display: block; margin: 12px 0; }
+.feld-titel { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.feld-hinweis { display: block; font-size: 12px; color: var(--text-leise); margin-top: 6px; }
+
+input, textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--rand);
+  background: var(--karte);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* kleiner, und iOS zoomt beim Tippen hinein */
+}
+
+textarea { min-height: 72px; resize: vertical; }
+
+.nebeneinander { display: flex; gap: 10px; align-items: flex-end; }
+.nebeneinander > * { flex: 1; }
+.nebeneinander button {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--rand);
+  flex: none;
+}
+
+.schalter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+}
+.schalter input { width: 20px; min-height: 20px; flex: none; }
+
+.auswahl { display: flex; flex-wrap: wrap; gap: 6px; }
+.auswahl button {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 19px;
+  border: 1px solid var(--rand);
+  font-size: 14px;
+}
+.auswahl button[aria-pressed="true"] {
+  background: var(--akzent);
+  color: #fff;
+  border-color: transparent;
+}
+
+.farbwahl { display: flex; flex-wrap: wrap; gap: 8px; }
+.farbwahl button {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+.farbwahl button[aria-pressed="true"] { border-color: var(--text); }
+
+.symbolwahl { display: flex; flex-wrap: wrap; gap: 6px; }
+.symbolwahl button {
+  width: 44px; height: 44px;
+  border-radius: 11px;
+  border: 1px solid var(--rand);
+  font-size: 19px;
+}
+.symbolwahl button[aria-pressed="true"] { border-color: var(--akzent); background: var(--grund); }
+
+.skala { display: flex; gap: 6px; }
+.skala button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--rand);
+  font-variant-numeric: tabular-nums;
+}
+.skala button[aria-pressed="true"] { background: var(--akzent); color: #fff; border-color: transparent; }
+
+/* ── Karten, Zeilen, Kacheln ──────────────────────────────────────── */
+
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.karte h2 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-leise);
+}
+
+.wertzeile {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 15px;
+}
+.wertzeile + .wertzeile { border-top: 1px solid var(--rand); }
+.wertzeile strong { font-variant-numeric: tabular-nums; text-align: right; }
+
+.kacheln { display: flex; gap: 10px; margin-bottom: 16px; }
+.kachel {
+  flex: 1;
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 12px 10px;
+  text-align: center;
+}
+.kachel-titel { display: block; font-size: 11px; color: var(--text-leise); text-transform: uppercase; letter-spacing: 0.05em; }
+.kachel-wert { display: block; font-size: 26px; font-variant-numeric: tabular-nums; margin: 2px 0; }
+.kachel-unten { display: block; font-size: 11px; color: var(--text-leise); }
+
+.chip {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--rand);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-leise);
+}
+
+.pfeil { color: var(--text-leise); font-size: 20px; }
+
+button.mitte.blank { text-align: left; padding: 0; background: none; }
+
+.sortier { display: flex; flex-direction: column; }
+.sortier button {
+  width: 34px; height: 26px;
+  color: var(--akzent);
+  font-size: 13px;
+}
+.sortier button:disabled { color: var(--rand); }
+
+/* ── Heatmap, Balken, Legende ─────────────────────────────────────── */
+
+.heatmap { margin: 2px 0 10px; }
+.heatmap.scrollt { overflow-x: auto; padding-bottom: 6px; }
+
+.legende {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-leise);
+}
+.stufe-punkt { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* Eigener Name, nicht `.balken`: das ist der Fortschrittsbalken, ein 6 px
+   hoher Streifen. Beides gleich zu nennen hieße, dass eines von beiden
+   irgendwann falsch aussieht — und zwar das, das man gerade nicht ansieht. */
+.wochenbalken { display: flex; gap: 8px; align-items: flex-end; }
+.wochenbalken-spalte { flex: 1; text-align: center; }
+.wochenbalken-schaft {
+  height: 84px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--grund);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.wochenbalken-schaft span { display: block; width: 100%; border-radius: 6px 6px 0 0; min-height: 2px; }
+.wochenbalken-name { display: block; font-size: 11px; color: var(--text-leise); margin-top: 4px; }
+.wochenbalken-wert { display: block; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ── Fokus ────────────────────────────────────────────────────────── */
+
+.lauf { padding: 6px 0; flex: 1; }
+.lauf + .lauf { border-top: 1px solid var(--rand); }
+.lauf-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.laufzeile { display: flex; align-items: flex-start; gap: 8px; }
+.laufzeile + .laufzeile { border-top: 1px solid var(--rand); }
+
+.marker {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 9px;
+  background: var(--rand);
+  color: var(--text-leise);
+  white-space: nowrap;
+}
+.marker.completed { background: color-mix(in srgb, var(--gruen) 18%, transparent); color: var(--gruen); }
+.marker.failed { background: color-mix(in srgb, var(--rot) 15%, transparent); color: var(--rot); }
+.marker.running { background: color-mix(in srgb, var(--akzent) 15%, transparent); color: var(--akzent); }
+
+.befund { padding: 8px 0; }
+.befund + .befund { border-top: 1px solid var(--rand); }
+.befund strong { display: block; font-weight: 550; font-size: 15px; }
+
+/* ── Blatt ────────────────────────────────────────────────────────── */
+
+.blatt {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--grund);
+  display: flex;
+  flex-direction: column;
+  animation: hoch 0.18s ease-out;
+}
+
+@keyframes hoch {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blatt { animation: none; }
+}
+
+.blatt-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-top));
+  padding-top: max(8px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--rand);
+  background: var(--karte);
+}
+
+.zurueck {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--akzent);
+}
+
+.blatt-titel { flex: 1; font-weight: 600; }
+.blatt-aktion button {
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--akzent);
+  font-weight: 600;
+}
+
+.blatt-inhalt {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.detail-kopf { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+.marke.gross { width: 52px; height: 52px; font-size: 24px; }
+
+.hinweis.klein { font-size: 12.5px; padding: 4px 0; text-align: left; }
+.laedt-leise { font-size: 12px; color: var(--text-leise); text-align: center; padding: 4px; }
