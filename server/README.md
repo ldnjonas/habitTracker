@@ -24,9 +24,16 @@ fällt niemandem als Problem auf.
 | `HABIT_DB` | `habits.sqlite` | Pfad der Datenbankdatei |
 | `PORT` | `8080` | |
 | `LOG_LEVEL` | `info` | |
+| `HABIT_BACKFILL_DAYS` | `7` | Wie weit zurück geschrieben werden darf; `0` = unbegrenzt |
+| `TZ` | Systemzone | Welcher Tag „heute" ist |
+
+`TZ` ist keine Kosmetik: der Server entscheidet über „heute", und ein Habit,
+der um 23:30 abgehakt wird, soll zu diesem Tag gehören und nicht zum nächsten.
+Steht der Server in UTC und das Telefon in Zürich, springt der Tageswechsel
+zwei Stunden zu früh.
 
 ```bash
-npm test     # Typprüfung, dann 90 Tests — ohne Netz und ohne Datei
+npm test     # Typprüfung, dann 121 Tests — ohne Netz und ohne Datei
 ```
 
 `npm test` prüft zuerst die Typen und führt dann die Tests aus. Der
@@ -65,6 +72,32 @@ GET  /sync?since=<seq>&limit=500   → alle Zeilen mit server_seq > since
 POST /sync                          → lokale Änderungen hochladen
 GET  /health                        → ohne Token
 ```
+
+## Die Ressourcen in `src/routes/`
+
+Der Abgleich überträgt Zeilen; die Endpunkte beantworten Fragen. Beide
+schreiben in dieselben Tabellen, und **jede Schreibung vergibt eine
+Sequenznummer** — eine Zeile, die im Browser entsteht und keine bekommt, steht
+in der Datenbank und taucht trotzdem in keinem Delta auf. Der Mac sähe sie nie.
+Ein eigener Test geht deshalb jeden schreibenden Endpunkt durch und prüft genau
+das.
+
+Die Regeln stehen in `src/store.ts`, nicht in den Endpunkten: sonst könnte die
+WebApp Zustände erzeugen, die die Mac-App nie erzeugt.
+
+- `entry.value == Σ events` — beim Setzen und Löschen einer Sitzung neu gerechnet
+- Kaskadierte Grabsteine samt `deleted_with`; **alle mit einer Sequenznummer**,
+  damit ein Client die Löschung nie halb sieht
+- Nur ein offener Fokus-Lauf; ein gerissener blockiert nicht
+- Ein Freeze nur auf einen vergangenen, verpassten Tag — und Ausnahme und
+  Abbuchung in einem Zug
+- Die Nachtrage-Grenze, in beide Richtungen: rückwirkend begrenzt, im Voraus gar nicht
+
+**Einen Unterschied zum Client gibt es bewusst:** `POST /backup/import` mit
+`replace` löscht nicht hart, sondern setzt Grabsteine. Im Client ist eine harte
+Löschung richtig — dort ist niemandem mehr etwas mitzuteilen. Hier schon: ein
+Gerät mit altem Cursor erführe von einer harten Löschung nie und schöbe die
+Zeilen beim nächsten Hochladen zurück.
 
 **Grabsteine werden mitgeliefert.** Ohne sie käme eine Löschung nie beim anderen
 Gerät an; dort stünde der Eintrag weiter, und niemand wüsste, warum.
@@ -108,8 +141,9 @@ Vereinigung über `code`.
 
 ## Was noch fehlt
 
-- **Die REST-Ressourcen** aus `spec/openapi.yaml` (`/habits`, `/entries`, …).
-  Die Domänenlogik dafür steht jetzt bereit; was fehlt, sind die Endpunkte und
-  die Invarianten des Servers.
+- **Die WebApp selbst** (`web/`). Der Server soll sie später über
+  `@fastify/static` mit ausliefern: ein Ursprung, eine Adresse, kein CORS.
+- **Der Login-Flow** (`/auth/register`, `/auth/login`, `/auth/refresh` in der
+  Spec). Ungebaut, weil v1 mit einem festen Token auskommt.
 - **Mehrbenutzerbetrieb.** `user_id` steht in jeder Tabelle, aber v1 prüft nur
   ein statisches Token und trennt nichts. Der Login-Flow steht in der Spec.

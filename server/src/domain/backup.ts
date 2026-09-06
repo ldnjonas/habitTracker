@@ -106,7 +106,13 @@ export function dateRange(file: BackupFile): { from: CalendarDate; to: CalendarD
 /// Erweiterung ein Bruch. Aus demselben Grund darf eine fremd erzeugte Datei
 /// leere Listen weglassen. Genau das macht auch der Decoder in Swift.
 export function parseBackup(text: string): BackupFile {
-  const roh = JSON.parse(text) as Record<string, unknown>;
+  return normalizeBackup(JSON.parse(text));
+}
+
+/// Wie `parseBackup`, aber auf einem schon geparsten Objekt — für eine
+/// Sicherung, die als JSON-Rumpf einer Anfrage ankommt statt als Datei.
+export function normalizeBackup(eingang: unknown): BackupFile {
+  const roh = eingang as Record<string, unknown>;
   if (typeof roh !== "object" || roh === null) {
     throw new Error("Keine Sicherungsdatei: kein JSON-Objekt");
   }

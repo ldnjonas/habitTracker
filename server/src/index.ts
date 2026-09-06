@@ -1,18 +1,31 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyError } from "fastify";
 import { Db } from "./db.ts";
 import { leseToken, pruefeToken } from "./auth.ts";
 import { leseDelta, schreibeDelta, type Delta } from "./sync.ts";
-
-/// Ein Fehler mit Statuscode — Fastify liest `statusCode` von jedem Error.
-///
-/// Ohne das hier wäre eine falsche Anfrage eine 500: der Server hätte einen
-/// Fehler gemeldet, obwohl der Client einen gemacht hat.
-function fehler(status: number, nachricht: string): Error {
-  return Object.assign(new Error(nachricht), { statusCode: status });
-}
+import { Fehler } from "./store.ts";
+import { habitRouten, tagRouten } from "./routes/habits.ts";
+import { entryRouten, journalRouten, papierkorbRouten } from "./routes/entries.ts";
+import { focusRouten, freezeRouten } from "./routes/focus.ts";
+import { insightRouten } from "./routes/insights.ts";
+import { backupRouten } from "./routes/backup.ts";
 
 export function baueServer(db: Db, token: string) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
+
+  // Ein Fehler des Aufrufers ist keine 500. Ohne diese Unterscheidung räumte
+  // der Server jeden Fehler als seinen eigenen ein, und in den Protokollen
+  // stünde ein Stapelabzug statt einer Erklärung.
+  app.setErrorHandler((fehler: FastifyError, _anfrage, antwort) => {
+    if (fehler instanceof Fehler) {
+      return antwort.code(fehler.statusCode).send({
+        error: fehler.message,
+        ...(fehler.details ? { problems: fehler.details } : {}),
+      });
+    }
+    const status = fehler.statusCode ?? 500;
+    if (status >= 500) app.log.error(fehler);
+    return antwort.code(status).send({ error: fehler.message });
+  });
 
   // Ohne Schutz erreichbar: sonst müsste eine Überwachung das Token kennen.
   app.get("/health", async () => ({ ok: true, seq: db.aktuelleSequenz() }));
@@ -25,7 +38,7 @@ export function baueServer(db: Db, token: string) {
       const since = Number(abfrage.since ?? 0);
       const limit = Math.min(Number(abfrage.limit ?? 500), 2000);
       if (!Number.isFinite(since) || since < 0) {
-        throw fehler(400, "since muss eine Zahl ≥ 0 sein");
+        throw new Fehler(400, "since muss eine Zahl ≥ 0 sein");
       }
       return leseDelta(db, since, limit);
     });
@@ -40,6 +53,19 @@ export function baueServer(db: Db, token: string) {
       const delta = anfrage.body as Delta;
       return schreibeDelta(db, delta ?? {});
     });
+
+    // Die Ressourcen für die WebApp. Sie schreiben in dieselben Tabellen wie
+    // der Abgleich und vergeben dieselben Sequenznummern — sonst sähe der Mac
+    // nichts von dem, was im Browser passiert.
+    habitRouten(geschuetzt, db);
+    tagRouten(geschuetzt, db);
+    entryRouten(geschuetzt, db);
+    journalRouten(geschuetzt, db);
+    papierkorbRouten(geschuetzt, db);
+    focusRouten(geschuetzt, db);
+    freezeRouten(geschuetzt, db);
+    insightRouten(geschuetzt, db);
+    backupRouten(geschuetzt, db);
   });
 
   return app;

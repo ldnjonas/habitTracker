@@ -1,5 +1,10 @@
-import type { Db, Zeile } from "./db.ts";
-import { TABELLEN, type Spalte, type Tabelle } from "./tables.ts";
+import type { Db } from "./db.ts";
+import { TABELLEN, type Tabelle } from "./tables.ts";
+import {
+  NUTZER, ausDatenbank, fuerDatenbank, habitZubehoer, schreibeHabitZubehoer,
+} from "./rows.ts";
+
+export { NUTZER };
 
 export type Delta = Record<string, unknown[]> & {
   nextSeq?: number;
@@ -13,32 +18,6 @@ export type Delta = Record<string, unknown[]> & {
 /// Gerät mit falsch gestellter Uhr gewänne sonst dauerhaft jeden Konflikt —
 /// und niemand käme darauf, dass das die Ursache ist.
 const UHR_TOLERANZ_MS = 5 * 60 * 1000;
-
-/// Solange es nur ein statisches Token gibt, ist der Nutzer eine Konstante —
-/// dieselbe, die der Client vor dem ersten Login benutzt (`Habit.localUserId`).
-export const NUTZER = process.env.HABIT_USER ?? "local";
-
-// MARK: - Umformen
-
-function ausDatenbank(zeile: Zeile, tabelle: Tabelle): Record<string, unknown> {
-  const ergebnis: Record<string, unknown> = {};
-  for (const spalte of tabelle.spalten) {
-    const wert = zeile[spalte.spalte];
-    if (wert === null || wert === undefined) continue;
-    ergebnis[spalte.feld] =
-      spalte.art === "bool" ? wert !== 0 :
-      spalte.art === "json" ? JSON.parse(String(wert)) :
-      wert;
-  }
-  return ergebnis;
-}
-
-function fuerDatenbank(wert: unknown, spalte: Spalte): unknown {
-  if (wert === null || wert === undefined) return null;
-  if (spalte.art === "bool") return wert ? 1 : 0;
-  if (spalte.art === "json") return JSON.stringify(wert);
-  return wert as string | number;
-}
 
 // MARK: - Lesen
 
@@ -73,25 +52,6 @@ export function leseDelta(db: Db, since: number, limit = 500): Delta {
   delta.nextSeq = grenze;
   delta.hasMore = grenze < hoechste;
   return delta;
-}
-
-/// Regeln und Tag-Zuordnungen eines Habits. Sie wandern mit ihm statt eigene
-/// Zeilen im Delta zu bilden — genau wie in der Sicherungsdatei.
-function habitZubehoer(db: Db, habitId: string) {
-  const regeln = db.alle(
-    `SELECT * FROM habit_rule WHERE habit_id = ? ORDER BY effective_from`, habitId);
-  const tags = db.alle(`SELECT tag_id FROM habit_tag WHERE habit_id = ?`, habitId);
-  return {
-    rules: regeln.map((r) => ({
-      effectiveFrom: r.effective_from,
-      schedule: JSON.parse(String(r.schedule_payload)),
-      ...(r.target_value !== null && r.target_unit !== null
-        ? { target: { value: r.target_value, unit: r.target_unit,
-                      comparison: r.target_comparison ?? "atLeast" } }
-        : {}),
-    })),
-    tagIds: tags.map((t) => t.tag_id),
-  };
 }
 
 // MARK: - Schreiben
@@ -174,34 +134,4 @@ function schreibeZeile(
     schreibeHabitZubehoer(db, String(schluesselWerte[0]), roh);
   }
   return true;
-}
-
-/// Regeln und Tags werden mit dem Habit als Einheit ersetzt.
-///
-/// Dieselbe Entscheidung wie beim Einspielen einer Sicherung: eine teilweise
-/// übernommene Zeitplan-Historie wäre schwerer zu erklären als eine ersetzte.
-function schreibeHabitZubehoer(db: Db, habitId: string, roh: Record<string, unknown>): void {
-  if (Array.isArray(roh.rules)) {
-    db.schreibe(`DELETE FROM habit_rule WHERE habit_id = ?`, habitId);
-    for (const regel of roh.rules as Record<string, unknown>[]) {
-      const ziel = regel.target as Record<string, unknown> | undefined;
-      const plan = regel.schedule as Record<string, unknown>;
-      db.schreibe(
-        `INSERT INTO habit_rule
-           (habit_id, effective_from, schedule_kind, schedule_payload,
-            target_value, target_unit, target_comparison)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        habitId, regel.effectiveFrom, plan?.kind ?? "daily", JSON.stringify(plan),
-        ziel?.value ?? null, ziel?.unit ?? null, ziel?.comparison ?? null);
-    }
-  }
-  if (Array.isArray(roh.tagIds)) {
-    db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
-    for (const tagId of roh.tagIds as string[]) {
-      // Ein Tag, den der Server noch nicht kennt, würde am Fremdschlüssel
-      // scheitern — hier gibt es keinen, die Zuordnung darf vorauseilen.
-      db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
-                  habitId, tagId);
-    }
-  }
 }
