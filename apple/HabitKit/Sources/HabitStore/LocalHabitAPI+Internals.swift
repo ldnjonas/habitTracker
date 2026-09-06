@@ -182,7 +182,7 @@ extension LocalHabitAPI {
         let limit = try readSetting(Self.backfillKey, db: db).flatMap(Int.init)
             ?? Self.defaultBackfillLimitDays
         if date > today {
-            throw HabitStoreError.backfillLimitExceeded(date: date, limitDays: limit)
+            throw HabitStoreError.futureDate(date)
         }
         guard limit > 0 else { return }        // 0 heißt: unbegrenzt
         if date < today.adding(days: -limit) {

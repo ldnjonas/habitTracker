@@ -205,6 +205,9 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
     case needsAtLeastOneRule
     /// Der Eintrag liegt weiter zurück, als `backfillLimitDays` erlaubt.
     case backfillLimitExceeded(date: CalendarDate, limitDays: Int)
+    /// Ein Tag, der noch nicht war. Eigene Fassung, weil „liegt weiter als 7
+    /// Tage zurück" für den 24. September schlicht nicht stimmt.
+    case futureDate(CalendarDate)
     /// Es läuft bereits ein Fokus, der noch heil ist.
     case focusAlreadyRunning(id: UUID, endsOn: CalendarDate)
     case invalidFocusLength(Int)
@@ -223,6 +226,8 @@ public enum HabitStoreError: Error, Equatable, CustomStringConvertible {
         case .needsAtLeastOneRule: "Ein Habit braucht mindestens eine Regel"
         case .backfillLimitExceeded(let date, let limit):
             "\(date) liegt weiter als \(limit) Tage zurück"
+        case .futureDate(let date):
+            "\(date) liegt in der Zukunft — abhaken lässt sich nur, was schon war"
         case .focusAlreadyRunning(_, let endsOn):
             "Es läuft bereits ein Fokus bis zum \(endsOn)"
         case .invalidFocusLength(let days):
