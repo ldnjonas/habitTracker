@@ -194,17 +194,16 @@ struct TrashDestination: View {
     @State private var items: [TrashItem] = []
 
     var body: some View {
-        ScrollView {
-            TrashView(items: items) { item in
-                Task {
-                    try? await state.api.restore(item)
-                    await state.reload()
-                    await lade()
-                }
+        // Ohne Hülle: `TrashView` ist selbst eine Liste beziehungsweise ein
+        // leerer Zustand, und beide wollen die Fläche füllen. In einer
+        // `ScrollView` bekämen sie keine Höhe und blieben unsichtbar.
+        TrashView(items: items) { item in
+            Task {
+                try? await state.api.restore(item)
+                await state.reload()
+                await lade()
             }
-            .padding(16)
         }
-        .navigationTitle("Papierkorb")
         .navigationBarTitleDisplayMode(.inline)
         .task { await lade() }
     }
