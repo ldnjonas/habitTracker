@@ -200,19 +200,19 @@ public struct FocusRecordRow: View {
     public init(record: FocusRecord) { self.record = record }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: 28) {
-            metric("\(record.completed)",
-                   record.completed == 1 ? "durchgezogen" : "durchgezogen",
-                   tint: .green)
-            metric("\(record.failed)", record.failed == 1 ? "gerissen" : "gerissen", tint: .red)
+        // Fünf Kennzahlen passen auf ein Fenster, aber nicht auf ein Telefon —
+        // dort bricht die Reihe um, statt „durchgezogen" zu stapeln.
+        FlowLayout(spacing: 24) {
+            metric("\(record.completed)", "durchgezogen", tint: .green)
+            metric("\(record.failed)", "gerissen", tint: .red)
             if record.abandoned > 0 {
                 metric("\(record.abandoned)", "abgebrochen", tint: .secondary)
             }
             metric(record.successRate.map { "\(Int(($0 * 100).rounded()))\u{202F}%" } ?? "–",
                    "Quote", tint: .primary)
             metric("\(record.longestWinStreak)", "beste Serie", tint: .primary)
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func metric(_ value: String, _ caption: String, tint: Color) -> some View {

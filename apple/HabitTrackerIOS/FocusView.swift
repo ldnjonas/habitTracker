@@ -22,9 +22,11 @@ struct FocusView: View {
                 let progress = state.focusProgress
 
                 if !progress.isEmpty {
-                    HStack(alignment: .top, spacing: 24) {
+                    // Auf dem Mac steht das Guthaben rechts neben der Bilanz.
+                    // Hier wäre das eine sechste Spalte auf 400 Punkten —
+                    // also darunter, in derselben Schrift wie die Kennzahlen.
+                    VStack(alignment: .leading, spacing: 12) {
                         FocusRecordRow(record: state.focusRecord)
-                        Spacer(minLength: 0)
                         freezeGuthaben
                     }
                 }
@@ -75,7 +77,7 @@ struct FocusView: View {
 
     /// Das Freeze-Guthaben — hier, weil es hier verdient wird.
     private var freezeGuthaben: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "snowflake").font(.callout)
                 Text("\(state.freezeBalance)").font(.title2).monospacedDigit()

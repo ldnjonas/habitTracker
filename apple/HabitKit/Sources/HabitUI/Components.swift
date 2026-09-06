@@ -216,46 +216,102 @@ public struct HabitRowView: View {
     private var progress: Double { habit.progress(value: value, on: date) }
 
     public var body: some View {
-        HStack(spacing: 12) {
-            if let shortcutNumber {
-                Text("\(shortcutNumber)")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 10)
-                    .help("Mit der Taste \(shortcutNumber) abhaken")
-            }
-            Button(action: onToggle) {
-                ProgressRing(progress: progress, color: color, symbol: habit.symbol, size: 30)
-            }
-            .buttonStyle(.plain)
-            .help(status.isCompleted ? "Zurücknehmen" : "Erledigt")
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(habit.name)
-                    .font(.body.weight(.medium))
-                    .strikethrough(status.isCompleted && habit.kind != .avoid, color: .secondary)
-
-                HStack(spacing: 6) {
-                    if streak > 0 {
-                        Label("\(streak)", systemImage: "flame.fill")
-                            .foregroundStyle(.orange)
-                    }
-                    Text(habit.rule(on: date)?.schedule.label ?? "")
-                    ForEach(tags) { tag in
-                        TagChip(tag: tag)
-                    }
+        Group {
+            // Auf einem Telefon konkurrieren Name, Trend und Mengensteuerung um
+            // dieselben Punkte. Statt den Zeitplan buchstabenweise umzubrechen,
+            // rutscht die Steuerung dann unter den Namen. Auf dem Mac ist Platz —
+            // dort wählt `ViewThatFits` weiterhin die einzeilige Fassung.
+            if hatSteuerung {
+                ViewThatFits(in: .horizontal) {
+                    einzeilig
+                    zweizeilig
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            } else {
+                einzeilig
             }
-
-            Spacer(minLength: 8)
-
-            if let trend { TrendBadge(trend: trend) }
-            control
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    /// Hat diese Zeile überhaupt eine Steuerung rechts? Nur dann lohnt der
+    /// zweite Anlauf — eine leere zweite Reihe wäre bloß Luft.
+    private var hatSteuerung: Bool {
+        switch habit.kind {
+        case .quantity: habit.target(on: date) != nil
+        case .avoid: true
+        case .binary: false
+        }
+    }
+
+    private var einzeilig: some View {
+        HStack(spacing: 12) {
+            kürzel
+            haken
+            beschriftung
+            Spacer(minLength: 8)
+            if let trend { TrendBadge(trend: trend) }
+            control
+        }
+    }
+
+    private var zweizeilig: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                kürzel
+                haken
+                beschriftung
+                Spacer(minLength: 8)
+                if let trend { TrendBadge(trend: trend) }
+            }
+            HStack(spacing: 12) {
+                Spacer(minLength: 0)
+                control
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var kürzel: some View {
+        if let shortcutNumber {
+            Text("\(shortcutNumber)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.tertiary)
+                .frame(width: 10)
+                .help("Mit der Taste \(shortcutNumber) abhaken")
+        }
+    }
+
+    private var haken: some View {
+        Button(action: onToggle) {
+            ProgressRing(progress: progress, color: color, symbol: habit.symbol, size: 30)
+        }
+        .buttonStyle(.plain)
+        .help(status.isCompleted ? "Zurücknehmen" : "Erledigt")
+    }
+
+    private var beschriftung: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(habit.name)
+                .font(.body.weight(.medium))
+                .strikethrough(status.isCompleted && habit.kind != .avoid, color: .secondary)
+                .lineLimit(1)
+
+            HStack(spacing: 6) {
+                if streak > 0 {
+                    Label("\(streak)", systemImage: "flame.fill")
+                        .foregroundStyle(.orange)
+                }
+                Text(habit.rule(on: date)?.schedule.label ?? "")
+                ForEach(tags) { tag in
+                    TagChip(tag: tag)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            // Eine Zeile, die umbricht, wäre keine Zeile mehr: lieber abschneiden.
+            .lineLimit(1)
+        }
     }
 
     @ViewBuilder
@@ -290,5 +346,77 @@ public struct HabitRowView: View {
         case ..<1000: 50
         default: 500
         }
+    }
+}
+
+// MARK: - Fließreihe
+
+/// Eine Reihe, die umbricht, statt ihre Kinder zu quetschen.
+///
+/// SwiftUI hat dafür nichts Eingebautes: eine `HStack` verteilt den vorhandenen
+/// Platz und drückt Text notfalls auf einen Buchstaben pro Zeile — auf einem
+/// Telefon passiert das schnell. Hier bekommt jedes Kind seine ideale Breite,
+/// und was nicht mehr hinpasst, rutscht eine Zeile tiefer.
+public struct FlowLayout: Layout {
+    public var spacing: CGFloat
+    public var lineSpacing: CGFloat
+
+    public init(spacing: CGFloat = 20, lineSpacing: CGFloat = 12) {
+        self.spacing = spacing
+        self.lineSpacing = lineSpacing
+    }
+
+    public func sizeThatFits(
+        proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) -> CGSize {
+        let verfuegbar = proposal.width ?? .infinity
+        let zeilen = umbrich(subviews, in: verfuegbar)
+        let hoehe = zeilen.reduce(0) { $0 + $1.hoehe }
+            + lineSpacing * CGFloat(max(0, zeilen.count - 1))
+        return CGSize(width: min(verfuegbar, zeilen.map(\.breite).max() ?? 0), height: hoehe)
+    }
+
+    public func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
+        var y = bounds.minY
+        for zeile in umbrich(subviews, in: bounds.width) {
+            var x = bounds.minX
+            for index in zeile.indizes {
+                let groesse = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y),
+                                      proposal: ProposedViewSize(groesse))
+                x += groesse.width + spacing
+            }
+            y += zeile.hoehe + lineSpacing
+        }
+    }
+
+    private struct Zeile {
+        var indizes: [Int] = []
+        var breite: CGFloat = 0
+        var hoehe: CGFloat = 0
+    }
+
+    private func umbrich(_ subviews: Subviews, in breite: CGFloat) -> [Zeile] {
+        var zeilen: [Zeile] = []
+        var aktuell = Zeile()
+        for index in subviews.indices {
+            let groesse = subviews[index].sizeThatFits(.unspecified)
+            let mitDiesem = aktuell.indizes.isEmpty
+                ? groesse.width : aktuell.breite + spacing + groesse.width
+            // Ein einzelnes Kind, das allein schon zu breit ist, bleibt trotzdem
+            // in seiner Zeile — sonst entstünde eine leere.
+            if !aktuell.indizes.isEmpty && mitDiesem > breite {
+                zeilen.append(aktuell)
+                aktuell = Zeile(indizes: [index], breite: groesse.width, hoehe: groesse.height)
+            } else {
+                aktuell.indizes.append(index)
+                aktuell.breite = mitDiesem
+                aktuell.hoehe = max(aktuell.hoehe, groesse.height)
+            }
+        }
+        if !aktuell.indizes.isEmpty { zeilen.append(aktuell) }
+        return zeilen
     }
 }

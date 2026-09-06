@@ -230,7 +230,7 @@ public struct OverviewStatsRow: View {
     }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: 28) {
+        FlowLayout(spacing: 24) {
             metric("\(stats.perfectStreak)",
                    stats.perfectStreak == 1 ? "Tag am Stück perfekt" : "Tage am Stück perfekt",
                    help: "Aufeinanderfolgende Tage, an denen alles Anstehende erledigt war. Tage ohne Plan unterbrechen nicht.")
@@ -241,8 +241,8 @@ public struct OverviewStatsRow: View {
                    stats.totalCompletions == 1 ? "Erledigung" : "Erledigungen",
                    help: "Alle erledigten Habit-Tage zusammen.")
             metric("\(habitCount)", habitCount == 1 ? "Habit" : "Habits", help: nil)
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func metric(_ value: String, _ caption: String, help: String?) -> some View {
