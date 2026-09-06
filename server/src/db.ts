@@ -1,20 +1,14 @@
 import postgres from "postgres";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
-/// Alles, was eine bestimmte Datenbank kennt, liegt in dieser Datei.
+/// Der Zugang zur Datenbank — und nichts sonst.
 ///
-/// **Postgres, in zwei Ausprägungen.** Im Betrieb spricht `postgres.js` mit
-/// Supabase; in den Tests läuft PGlite — dasselbe Postgres, nur nach WebAssembly
-/// übersetzt und im selben Prozess. Damit bleibt `npm test` hermetisch und
-/// schnell, statt einen Docker-Container vorauszusetzen, und trotzdem prüft es
-/// echtes Postgres statt einer Nachbildung.
+/// **Diese Datei kennt weder Node noch Deno.** Kein Dateisystem, kein Pfad,
+/// keine Umgebung: nur eine Verbindungszeichenfolge und SQL. Das ist die
+/// Voraussetzung dafür, dass derselbe Server in einer Edge Function läuft, wo
+/// es beides nicht gibt.
 ///
-/// Die Ausprägung wird **spät** geladen: PGlite bringt mehrere Megabyte
-/// WebAssembly mit und hat im Bündel einer Edge Function nichts verloren.
-
-const hier = dirname(fileURLToPath(import.meta.url));
+/// Die eingebettete Ausprägung für Tests und den Betrieb zu Hause steht in
+/// `pglite.ts` und wird von den Einstiegspunkten gewählt, nicht von hier.
 
 export type Zeile = Record<string, unknown>;
 
@@ -49,41 +43,35 @@ export class Db {
     this.treiber = treiber;
   }
 
-  /// Öffnet eine Datenbank.
+  /// Ein entferntes Postgres über seine Verbindungszeichenfolge.
   ///
-  /// Beginnt `ziel` mit `postgres`, ist es eine Verbindungszeichenfolge und der
-  /// Bestand liegt anderswo; sonst ist es ein Ordner (oder leer für „nur im
-  /// Arbeitsspeicher") und PGlite legt ihn hier an. Nur im zweiten Fall wird
-  /// das Schema angelegt — bei Supabase führen die Migrationen Regie.
-  static async oeffne(ziel = ""): Promise<Db> {
-    if (ziel.startsWith("postgres")) {
-      // `prepare: false` ist für Supavisor im Transaktionsmodus nötig:
-      // vorbereitete Anweisungen überleben dort den Verbindungswechsel nicht.
-      // `max: 1` gibt jeder `Db` genau eine Verbindung — die Voraussetzung
-      // dafür, dass `BEGIN` und `COMMIT` dieselbe Sitzung meinen.
-      const sql = postgres(ziel, { max: 1, prepare: false });
-      return new Db({
-        abfrage: async (text, werte) =>
-          await sql.unsafe(text, werte as never[]) as unknown as Zeile[],
-        ausfuehren: async (text) => { await sql.unsafe(text).simple(); },
-        schliesse: async () => { await sql.end(); },
-      });
-    }
-
-    const { eingebettet } = await import("./pglite.ts");
-    const db = new Db(await eingebettet(ziel));
-    await db.legeSchemaAn();
-    return db;
+  /// Das Schema wird hier **nicht** angelegt: bei Supabase führen die
+  /// Migrationen Regie, und eine Edge Function, die bei jeder Anfrage vierzehn
+  /// `CREATE TABLE IF NOT EXISTS` schickt, wäre Verschwendung mit Beigeschmack.
+  static oeffne(url: string): Db {
+    // `prepare: false` ist für Supavisor im Transaktionsmodus nötig:
+    // vorbereitete Anweisungen überleben dort den Verbindungswechsel nicht.
+    // `max: 1` gibt jeder `Db` genau eine Verbindung — die Voraussetzung
+    // dafür, dass `BEGIN` und `COMMIT` dieselbe Sitzung meinen.
+    const sql = postgres(url, { max: 1, prepare: false });
+    return new Db({
+      abfrage: async (text, werte) =>
+        await sql.unsafe(text, werte as never[]) as unknown as Zeile[],
+      ausfuehren: async (text) => { await sql.unsafe(text).simple(); },
+      schliesse: async () => { await sql.end(); },
+    });
   }
 
-  /// Für Tests und Werkzeuge, die ihren Treiber selbst mitbringen.
+  /// Für Einstiegspunkte, die ihren Treiber selbst mitbringen — `pglite.ts`,
+  /// die Tests, die Werkzeuge.
   static mitTreiber(treiber: Treiber): Db {
     return new Db(treiber);
   }
 
-  async legeSchemaAn(): Promise<void> {
-    await this.treiber.ausfuehren(readFileSync(join(hier, "schema.sql"), "utf8"));
-    // Beim ersten Anlegen gewürfelt, danach unveränderlich.
+  /// Legt Tabellen an, die es noch nicht gibt, und würfelt beim ersten Mal die
+  /// Kennung dieser Datenbank.
+  async legeSchemaAn(schema: string): Promise<void> {
+    await this.treiber.ausfuehren(schema);
     await this.schreibe(
       `INSERT INTO server_info (id, instance) VALUES (1, ?) ON CONFLICT (id) DO NOTHING`,
       crypto.randomUUID());

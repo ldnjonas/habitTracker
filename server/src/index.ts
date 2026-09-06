@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Db } from "./db.ts";
+import { oeffneEingebettet } from "./pglite.ts";
 import { leseToken } from "./auth.ts";
 import { baueApp } from "./app.ts";
 
@@ -24,7 +25,8 @@ const token = leseToken();
 // der nach einem Neustart mit leerem Bestand und frisch gewürfelter Kennung
 // dasteht, ist schlimmer als einer, der gar nicht startet: die Clients
 // erkennen eine fremde Datenbank und werfen ihren eigenen Stand weg.
-const db = await Db.oeffne(process.env.DATABASE_URL ?? process.env.HABIT_DB ?? "./pgdaten");
+const url = process.env.DATABASE_URL;
+const db = url ? Db.oeffne(url) : await oeffneEingebettet(process.env.HABIT_DB ?? "./pgdaten");
 
 const herkuenfte = (process.env.HABIT_ORIGINS ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);

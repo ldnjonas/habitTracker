@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "hono": "npm:hono@4.13.7",
+    "hono/": "npm:/hono@4.13.7/",
+    "postgres": "npm:postgres@3.4.9"
+  }
+}

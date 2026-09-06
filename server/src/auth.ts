@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { umgebung } from "./umgebung.ts";
 
 /// Zugangsschutz, v1: ein statisches Token aus der Umgebung.
 ///
@@ -6,8 +7,8 @@ import type { Context, Next } from "hono";
 /// später steht trotzdem: `user_id` liegt in jeder Tabelle, der Header ist
 /// schon `Authorization: Bearer`, und ein echtes JWT ersetzt später nur die
 /// Prüfung in dieser Datei.
-export function leseToken(umgebung: Record<string, string | undefined> = process.env): string {
-  const token = umgebung.HABIT_TOKEN?.trim();
+export function leseToken(): string {
+  const token = umgebung("HABIT_TOKEN")?.trim();
   if (!token || token.length < 16) {
     // Bewusst abbrechen statt ungeschützt zu starten. Ein Abgleich-Server ohne
     // Schutz im Netz gibt den kompletten Verlauf preis, und ein Server, der

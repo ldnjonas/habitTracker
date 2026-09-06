@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { Db } from "../src/db.ts";
+import { oeffneEingebettet } from "../src/pglite.ts";
 import { leseDelta, schreibeDelta } from "../src/sync.ts";
 import { baueApp } from "../src/app.ts";
 
@@ -30,7 +30,7 @@ describe("Delta lesen und schreiben", () => {
   /// Der Fehler, den erst ein Lauf mit dem echten Client zeigte: `Entry` trägt
   /// in Swift gar kein `userId`, die Zuordnung steht nur in der Datenbankzeile.
   test("Der Server setzt die Zugehörigkeit selbst", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { habits: [habit()] });
     // Ohne userId — so wie der Swift-Client es schickt.
     const ohne = { id: "e1", habitId: "h1", date: "2026-09-03", value: 1, source: "manual",
@@ -46,7 +46,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Ein Habit überlebt den Rundlauf samt Regeln und Tags", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { tags: [{
       id: "t1", userId: "local", name: "Gesundheit", colorHex: "#34C759", sortOrder: 0,
       createdAt: "2026-09-01T08:00:00.000Z", updatedAt: "2026-09-01T08:00:00.000Z" }] });
@@ -67,7 +67,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Der Cursor liefert nur Neues", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { habits: [habit()] });
     const erstes = await leseDelta(db, 0);
     assert.equal(erstes.habits.length, 1);
@@ -84,7 +84,7 @@ describe("Delta lesen und schreiben", () => {
 
   /// Ohne Grabsteine käme eine Löschung nie beim anderen Gerät an.
   test("Grabsteine werden mitgeliefert", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { entries: [eintrag()] });
     const cursor = (await leseDelta(db, 0)).nextSeq!;
 
@@ -98,7 +98,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Die neuere Fassung gewinnt, die ältere wird verworfen", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { entries: [eintrag({ value: 1, updatedAt: "2026-09-03T10:00:00.000Z" })] });
 
     const alt = await schreibeDelta(db, {
@@ -115,7 +115,7 @@ describe("Delta lesen und schreiben", () => {
 
   /// Ein Gerät mit falsch gestellter Uhr gewänne sonst dauerhaft jeden Konflikt.
   test("Eine Uhr aus der Zukunft wird gestutzt", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     const jetzt = new Date("2026-09-05T12:00:00.000Z");
     await schreibeDelta(db, { entries: [eintrag({
       value: 7, updatedAt: "2027-01-01T00:00:00.000Z" })] }, jetzt);
@@ -132,7 +132,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Eine Freeze-Buchung wird angelegt, aber nie geändert", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     const buchung = {
       id: "f1", userId: "local", amount: 1, reason: "focusCompleted",
       focusRunId: "r1", createdAt: "2026-09-01T08:00:00.000Z",
@@ -145,7 +145,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Ein Journaltag wird über (userId, date) erkannt", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     const log = { userId: "local", date: "2026-09-03", mood: 3,
                   createdAt: "2026-09-03T08:00:00.000Z", updatedAt: "2026-09-03T08:00:00.000Z" };
     await schreibeDelta(db, { dayLogs: [log] });
@@ -158,7 +158,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Regeln werden mit dem Habit als Einheit ersetzt", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { habits: [habit()] });
     await schreibeDelta(db, { habits: [habit({
       updatedAt: "2026-09-02T08:00:00.000Z",
@@ -173,7 +173,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Bei zu vielen Zeilen wird abgeschnitten und das gesagt", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     for (let i = 0; i < 10; i++) {
       await schreibeDelta(db, { entries: [eintrag({ id: `e${i}`, date: `2026-09-${10 + i}` })] });
     }
@@ -188,7 +188,7 @@ describe("Delta lesen und schreiben", () => {
   });
 
   test("Ein fehlgeschlagenes Delta hinterlässt nichts", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     await schreibeDelta(db, { habits: [habit()] });
     const vorher = await db.aktuelleSequenz();
 
@@ -208,7 +208,7 @@ describe("Delta lesen und schreiben", () => {
 
 describe("Über HTTP", () => {
   test("Ohne Token kommt man nicht durch, mit schon", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     const app = baueApp(db, TOKEN);
     const kopf = { authorization: `Bearer ${TOKEN}` };
 
@@ -235,7 +235,7 @@ describe("Über HTTP", () => {
   });
 
   test("Die Gesundheitsprüfung braucht kein Token", async () => {
-    const db = await Db.oeffne();
+    const db = await oeffneEingebettet();
     const app = baueApp(db, TOKEN);
     const antwort = await app.request("/health");
     assert.equal(antwort.status, 200);
@@ -248,8 +248,8 @@ describe("Über HTTP", () => {
   /// seiner eigenen unterscheiden — dann hat er nichts mehr zu senden und
   /// fragt nach Zeilen jenseits seines Cursors, die es dort nie geben wird.
   test("Jede Datenbank sagt, wer sie ist", async () => {
-    const eine = await Db.oeffne();
-    const andere = await Db.oeffne();
+    const eine = await oeffneEingebettet();
+    const andere = await oeffneEingebettet();
     const a = await eine.instanz();
     const b = await andere.instanz();
 

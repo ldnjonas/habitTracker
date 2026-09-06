@@ -99,6 +99,82 @@ Transport Security aus, eine Netzadresse nicht.
 Container bleibt — und selbst nach Löschen und Neuinstallieren holt der erste
 Abgleich alles vom Server zurück.
 
+## Der Server bei Supabase
+
+Der Abgleich lief lange auf dem MacBook. Das hieß: von unterwegs abzuhaken
+bedeutete warten, bis der Mac wieder wach ist. Jetzt läuft derselbe Server als
+**Supabase Edge Function** auf **Supabase-Postgres**, und die WebApp liegt bei
+**Cloudflare Pages** — beides kostenlos und immer erreichbar.
+
+**Es ist derselbe Code.** `server/src/app.ts` weiß nicht, wo er läuft; darüber
+liegt `server/src/index.ts` für Node und `supabase/functions/api/` für Deno.
+Dieselben Routen, derselbe Zugangsschutz, dieselben Tests.
+
+### Lokal, ohne Supabase
+
+```bash
+cd server && HABIT_TOKEN=… npm start
+```
+
+Ohne `DATABASE_URL` läuft **PGlite** in `server/pgdaten/` — echtes Postgres,
+nach WebAssembly übersetzt, im selben Prozess. Kein Container, keine
+Installation. Dieselbe Ausprägung benutzen die Tests, deshalb bleibt `npm test`
+hermetisch und schnell.
+
+Ein Ordner ist es und kein Arbeitsspeicher: ein Server, der nach einem Neustart
+leer und mit frisch gewürfelter Kennung dasteht, wäre schlimmer als einer, der
+nicht startet — die Clients erkennen eine fremde Datenbank und werfen ihren
+eigenen Stand weg.
+
+**PGlite ist ein Prozess.** Zwei Server auf demselben Ordner gehen nicht; einer
+liefert ohnehin API und WebApp zugleich.
+
+### Aufsetzen
+
+```bash
+brew install supabase/tap/supabase
+supabase login
+supabase link --project-ref <deine-ref>
+supabase db push                      # legt das Schema aus supabase/migrations an
+supabase secrets set HABIT_TOKEN="$(openssl rand -base64 32)"
+supabase secrets set HABIT_ORIGINS="https://<deine-app>.pages.dev"
+supabase functions deploy api
+```
+
+`verify_jwt = false` steht schon in `supabase/config.toml`. **Ohne das kommt
+kein Client durch:** Supabase prüfte sonst selbst ein JWT und wiese unser
+`Authorization: Bearer <Token>` ab, bevor die Funktion überhaupt läuft. Damit
+ist das Token der einzige Schutz — deshalb lang und zufällig.
+
+### Den Bestand mitnehmen
+
+```bash
+cd server
+node --disable-warning=ExperimentalWarning tools/nach-postgres.ts \
+     ./pgdaten "postgresql://…?sslmode=require"
+```
+
+Das Werkzeug nimmt **die Sequenznummern und die Kennung mit**. Der Cursor jedes
+Clients ist genau diese Zahl; ohne beides lädt jedes Gerät alles neu, und mit
+einer neuen Kennung wirft es vorher seinen eigenen Stand weg. Mit beidem merkt
+niemand den Umzug.
+
+Es liest auch noch eine alte SQLite-Datei — dann aber über `sqlite3 … .backup`
+kopieren und nicht über `cp`: das WAL bliebe sonst zurück, und mit ihm die
+halbe Datenbank.
+
+### Die WebApp zu Cloudflare Pages
+
+```bash
+cd web
+VITE_API_BASE=https://<projekt>.supabase.co/functions/v1/api npm run build
+npx wrangler pages deploy dist
+```
+
+Die Adresse wird zur **Bauzeit** eingesetzt. Bleibt sie leer, ruft die WebApp
+relativ auf — richtig für den lokalen Server, der beides ausliefert, und der
+Grund, warum es dort kein CORS gibt.
+
 ## Zeiterfassung
 
 Ein Habit mit „Sitzungen mit Uhrzeit erfassen“ nimmt Start und Ende statt einer

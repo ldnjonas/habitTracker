@@ -16,6 +16,7 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { Db } from "../src/db.ts";
+import { oeffneEingebettet } from "../src/pglite.ts";
 
 /// Reihenfolge mit Bedacht: `habit_rule` und `habit_tag` hängen am Habit.
 const TABELLEN = [
@@ -27,7 +28,9 @@ const quellePfad = process.argv[2] ?? "habits.sqlite";
 const zielPfad = process.argv[3] ?? "./pgdaten";
 
 const quelle = new DatabaseSync(quellePfad);
-const ziel = await Db.oeffne(zielPfad);
+const ziel = zielPfad.startsWith("postgres")
+  ? Db.oeffne(zielPfad)
+  : await oeffneEingebettet(zielPfad);
 
 console.log(`aus ${quellePfad} nach ${zielPfad}`);
 

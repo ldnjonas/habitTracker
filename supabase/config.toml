@@ -1,0 +1,35 @@
+# Supabase für den Abgleich-Server.
+#
+# Nur das Nötige: die Datenbank und eine Funktion. Auth, Storage und Realtime
+# bleiben aus — der Server bringt seinen eigenen Zugangsschutz mit, und was
+# nicht läuft, kann auch nicht offenstehen.
+
+project_id = "habittracker"
+
+[db]
+port = 54322
+major_version = 17
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[functions.api]
+# **Ohne das kommt kein Client durch.** Supabase prüft sonst selbst ein JWT und
+# weist unser `Authorization: Bearer <Token>` als ungültig ab, bevor die
+# Funktion überhaupt läuft.
+verify_jwt = false
+
+[auth]
+enabled = false
+
+[storage]
+enabled = false
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323

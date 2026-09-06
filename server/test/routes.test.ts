@@ -7,7 +7,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { Db } from "../src/db.ts";
+import { oeffneEingebettet } from "../src/pglite.ts";
 import { baueApp } from "../src/app.ts";
 import { addDays } from "../src/domain/calendar.ts";
 import { heute } from "../src/store.ts";
@@ -24,7 +24,7 @@ type Antwort = { statusCode: number; json: <T = any>() => T; body: string };
 
 /// Ein frischer Server je Test — die Datenbank liegt im Arbeitsspeicher.
 async function neu() {
-  const db = await Db.oeffne();
+  const db = await oeffneEingebettet();
   const app = baueApp(db, TOKEN);
 
   async function ruf(

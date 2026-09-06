@@ -27,6 +27,7 @@ import {
   canFreeze, freezeBalance, pendingFreezeAwards,
 } from "./domain/freeze.ts";
 import { stats } from "./domain/stats.ts";
+import { umgebung } from "./umgebung.ts";
 
 // MARK: - Fehler
 
@@ -85,7 +86,7 @@ export function heute(): CalendarDate {
 ///
 /// Ohne diese Grenze trägt man sich rückwirkend einen perfekten Monat ein und
 /// die eigenen Zahlen sind nichts mehr wert.
-export const NACHTRAGE_TAGE = Number(process.env.HABIT_BACKFILL_DAYS ?? 7);
+export const NACHTRAGE_TAGE = Number(umgebung("HABIT_BACKFILL_DAYS") ?? 7);
 
 /// Wirft, wenn ein Datum weiter zurückliegt als erlaubt.
 ///

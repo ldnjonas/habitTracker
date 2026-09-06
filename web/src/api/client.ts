@@ -7,6 +7,18 @@
 
 const SCHLUESSEL = "habit-token";
 
+/// Wo die API liegt.
+///
+/// Leer, solange derselbe Server die WebApp ausliefert — dann sind die Aufrufe
+/// relativ, es gibt einen Ursprung und kein CORS. Liegt die App woanders
+/// (Cloudflare Pages) als die API (Supabase), steht hier zur Bauzeit die
+/// vollständige Adresse.
+const BASIS = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+function adresse(pfad: string): string {
+  return BASIS + pfad;
+}
+
 export function token(): string | null {
   try {
     return localStorage.getItem(SCHLUESSEL);
@@ -53,7 +65,7 @@ async function ruf<T>(methode: string, pfad: string, rumpf?: unknown): Promise<T
 
   let antwort: Response;
   try {
-    antwort = await fetch(pfad, {
+    antwort = await fetch(adresse(pfad), {
       method: methode,
       headers: kopf,
       body: rumpf === undefined ? undefined : JSON.stringify(rumpf),
@@ -95,7 +107,7 @@ export const api = {
 
 /// Prüft ein Token, ohne es zu speichern.
 export async function tokenPasst(kandidat: string): Promise<boolean> {
-  const antwort = await fetch("/habits", {
+  const antwort = await fetch(adresse("/habits"), {
     headers: { authorization: `Bearer ${kandidat.trim()}` },
   });
   return antwort.ok;

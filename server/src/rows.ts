@@ -10,10 +10,11 @@
 
 import type { Db, Zeile } from "./db.ts";
 import { TABELLEN, type Spalte, type Tabelle } from "./tables.ts";
+import { umgebung } from "./umgebung.ts";
 
 /// Solange es nur ein statisches Token gibt, ist der Nutzer eine Konstante —
 /// dieselbe, die der Client vor dem ersten Login benutzt (`Habit.localUserId`).
-export const NUTZER = process.env.HABIT_USER ?? "local";
+export const NUTZER = umgebung("HABIT_USER") ?? "local";
 
 export function tabelleFuer(schluessel: string): Tabelle {
   const tabelle = TABELLEN.find((t) => t.schluessel === schluessel);
