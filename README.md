@@ -162,6 +162,31 @@ die denselben Tag abgehakt haben, meinen dieselbe Sache.
 Enthalten sind nur lebende Zeilen. Grabsteine gehören zum Sync-Protokoll, nicht
 zur Sicherung — die beschreibt den Bestand, nicht seine Geschichte.
 
+### Täglich, ohne Zutun
+
+Eine Sicherung, an die man denken muss, fehlt genau dann, wenn man sie braucht.
+Die Mac-App legt deshalb selbst eine an — beim Start und beim Tageswechsel, nach
+`~/Library/Application Support/HabitTracker/Sicherungen/`.
+
+Zwei Regeln halten den Ordner brauchbar:
+
+- **Hat sich nichts geändert, wird nichts geschrieben.** Eine Reihe gleicher
+  Dateien sagt nichts, was nicht schon im Datum steht — und verdrängt beim
+  Aufräumen die Stände, die sich unterscheiden.
+- **Die letzten 14 Tage bleiben vollständig, davor je Monat eine, bis zwölf
+  Monate zurück.** Ein gleitendes Fenster allein wäre zu kurz: einen Fehler von
+  vorletzter Woche bemerkt man, einen von vor einem halben Jahr manchmal erst,
+  wenn die Zahlen nicht mehr stimmen. Alles aufzuheben wäre das andere Extrem.
+
+**Wogegen das hilft und wogegen nicht:** gegen Fehlgriffe — einen versehentlich
+gelöschten Habit, einen Abgleich, der etwas überschreibt, eine Datenbank, die
+nicht mehr aufgeht. Nicht gegen den Verlust der Festplatte, denn die Dateien
+liegen daneben. Deshalb ist der Ordner aus der App heraus erreichbar: wer mehr
+will, richtet Time Machine darauf oder kopiert ihn weg.
+
+Abschalten geht auf derselben Seite. Etwas, das ungefragt Dateien anlegt, muss
+sich abstellen lassen.
+
 ## Vier Entscheidungen, die alles andere erklären
 
 **Kalendertage statt Zeitstempel.** „Habe ich heute Sport gemacht?" ist eine

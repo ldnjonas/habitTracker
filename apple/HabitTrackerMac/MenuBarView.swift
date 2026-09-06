@@ -50,6 +50,10 @@ struct MenuBarView: View {
         // nachziehen, dann neu lesen.
         .task {
             if await !state.refreshToday() { await state.reload() }
+            // Auch von hier aus, damit eine App, die wochenlang offen steht,
+            // ihre tägliche Sicherung bekommt: das Hauptfenster lädt sein
+            // `task` nur einmal.
+            await HabitTrackerApp.sichereAutomatisch(state)
         }
     }
 

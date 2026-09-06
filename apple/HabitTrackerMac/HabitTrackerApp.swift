@@ -38,6 +38,28 @@ struct HabitTrackerApp: App {
     /// geschlossen hat.
     static let mainWindowID = "main"
 
+    /// Wer die Sicherung geschrieben hat — steht in der Datei.
+    static var generator: String { LocalHabitAPI.defaultGenerator }
+
+    static var backupOrdner: URL { AutoBackup.ordner(neben: databaseURL) }
+
+    /// Die tägliche Sicherung, angestoßen beim Start und beim Tageswechsel.
+    ///
+    /// Beides ist nötig, und keins reicht allein: wer die App jeden Morgen
+    /// startet, wird beim Start gesichert; wer sie wochenlang offen stehen
+    /// lässt, beim Wechsel des Stichtags. Zu oft aufgerufen zu werden schadet
+    /// nicht — für einen Tag, der schon eine Datei hat, tut der Lauf nichts.
+    ///
+    /// Fehler bleiben hier still. Eine Sicherung, die nicht klappt, darf den
+    /// Start nicht aufhalten; sichtbar wird sie auf der Sicherungsseite, die
+    /// den Ordner ohnehin anzeigt.
+    @discardableResult
+    static func sichereAutomatisch(_ state: AppState) async -> AutoBackup.Ergebnis? {
+        guard let store = state.lokal else { return nil }
+        return try? await AutoBackup.lauf(store: store, ordner: backupOrdner,
+                                          today: CalendarDate.today(), generator: generator)
+    }
+
     static var databaseURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                             in: .userDomainMask)[0]
@@ -59,6 +81,9 @@ struct HabitTrackerApp: App {
                     // Erst den Stichtag prüfen: das Fenster kann seit gestern
                     // offen gestanden haben.
                     if await !state.refreshToday() { await state.reload() }
+                    // Danach sichern, nicht davor: die Sicherung soll den Stand
+                    // des Tages festhalten, an dem sie liegt.
+                    await Self.sichereAutomatisch(state)
                 }
                 .alert("Datenbank konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {

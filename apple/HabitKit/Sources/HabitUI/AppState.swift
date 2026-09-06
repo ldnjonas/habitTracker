@@ -60,7 +60,11 @@ public final class AppState {
     /// Serveradresse und Abgleich gehören nicht ins `HabitAPI`-Protokoll: ein
     /// rein entfernter Client hätte keine Adresse zu speichern und nichts
     /// abzugleichen. Deshalb hier die Prüfung statt einer Erweiterung dort.
-    private var lokal: LocalHabitAPI? { api as? LocalHabitAPI }
+    /// Die Datenbank, falls es eine lokale ist.
+    ///
+    /// Öffentlich, weil die Mac-App daran hängt, was nur sie tut: die tägliche
+    /// automatische Sicherung. In `HabitUI` selbst wird sie dafür nicht benutzt.
+    public var lokal: LocalHabitAPI? { api as? LocalHabitAPI }
 
     /// Richtet den Abgleich ein und legt das Token im Schlüsselbund ab.
     ///

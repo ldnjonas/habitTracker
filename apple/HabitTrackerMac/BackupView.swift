@@ -24,8 +24,15 @@ struct BackupDocument: FileDocument {
 
 /// Sichern und Wiederherstellen als Datei.
 ///
-/// Bewusst ohne Automatik: der Nutzer bestimmt, wann und wohin gesichert wird.
-/// Eine Sicherung, die im Verborgenen läuft, merkt man erst, wenn sie fehlt.
+/// Zwei Wege nebeneinander, und beide werden gebraucht. **Von Hand** bestimmt
+/// man Zeitpunkt, Umfang und Ort — das ist der Weg, wenn eine Sicherung
+/// woandershin soll oder nur einzelne Habits umfasst. **Automatisch** läuft
+/// täglich eine vollständige in einen festen Ordner, weil eine Sicherung, an
+/// die man denken muss, genau dann fehlt, wenn man sie braucht.
+///
+/// Damit die automatische nicht im Verborgenen läuft, steht sie hier oben mit
+/// Ordner, Datum und Anzahl — und mit einem Schalter. Etwas, das ungefragt
+/// Dateien anlegt, muss sich abstellen lassen.
 struct BackupView: View {
     @Environment(AppState.self) private var state
 
@@ -45,10 +52,18 @@ struct BackupView: View {
     @State private var lastReport: ImportReport?
     @State private var problem: String?
 
+    /// Was im Sicherungsordner liegt. Beim Öffnen der Seite frisch gelesen —
+    /// ein mitgeführter Zustand ginge irgendwann daneben, und der Ordner ist
+    /// die Wahrheit.
+    @State private var sicherungen: [URL] = []
+    @State private var autoAn = true
+    @State private var autoMeldung: String?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 syncSection
+                autoSection
                 exportSection
                 importSection
                 if let lastReport { reportSection(lastReport) }
@@ -129,6 +144,86 @@ struct BackupView: View {
     }
 
     // MARK: - Export
+
+    // MARK: - Automatisch
+
+    private var autoSection: some View {
+        card("Automatisch sichern") {
+            Toggle("Täglich eine Sicherung anlegen", isOn: Binding(
+                get: { autoAn },
+                set: { neu in
+                    autoAn = neu
+                    Task {
+                        try? await state.lokal?.setzeAutomatischeSicherung(neu)
+                        if neu { await sichereJetzt() } else { await ladeSicherungen() }
+                    }
+                }))
+
+            Text("Läuft beim Start der App und beim Tageswechsel. Hat sich seit der letzten Sicherung nichts geändert, wird keine neue geschrieben.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let letzte = sicherungen.last {
+                LabeledContent("Letzte", value: AutoBackup.tag(von: letzte)?.longLabel ?? "—")
+                LabeledContent("Aufbewahrt", value: "\(sicherungen.count) Stück")
+            } else {
+                Text(autoAn ? "Noch keine Sicherung angelegt." : "Ausgeschaltet.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Text("Die letzten \(AutoBackup.taeglicheTage) Tage bleiben vollständig, davor je Monat eine, bis \(AutoBackup.monatlicheMonate) Monate zurück. Die Dateien liegen neben der Datenbank — das schützt vor Fehlgriffen, nicht vor dem Verlust der Festplatte.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let autoMeldung {
+                Text(autoMeldung).font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Button("Jetzt sichern") { Task { await sichereJetzt() } }
+                    .disabled(!autoAn)
+                Spacer()
+                Button("Im Finder zeigen") {
+                    NSWorkspace.shared.activateFileViewerSelecting(
+                        [sicherungen.last ?? HabitTrackerApp.backupOrdner])
+                }
+                .controlSize(.small)
+                .disabled(sicherungen.isEmpty)
+            }
+        }
+        .task { await ladeSicherungen() }
+    }
+
+    private func ladeSicherungen() async {
+        autoAn = (try? await state.lokal?.automatischeSicherung()) ?? true
+        sicherungen = (try? AutoBackup.vorhandene(in: HabitTrackerApp.backupOrdner)) ?? []
+    }
+
+    /// Von Hand angestoßen — mit denselben Regeln wie automatisch.
+    ///
+    /// Der Knopf erzwingt also **keine** Datei: hat sich nichts geändert, sagt
+    /// er das. Eine erzwungene Kopie desselben Stands wäre eine Datei, die
+    /// nichts festhält, und sie verdrängte beim Aufräumen eine, die etwas
+    /// festhält.
+    private func sichereJetzt() async {
+        guard let store = state.lokal else { return }
+        do {
+            let ergebnis = try await AutoBackup.lauf(
+                store: store, ordner: HabitTrackerApp.backupOrdner,
+                today: state.today, generator: HabitTrackerApp.generator)
+            autoMeldung = switch ergebnis {
+            case .geschrieben: nil
+            case .schonVorhanden: "Für heute liegt schon eine Sicherung."
+            case .unveraendert(let seit):
+                "Seit dem \(AutoBackup.tag(von: seit)?.longLabel ?? "letzten Mal") hat sich nichts geändert."
+            case .aus: "Ausgeschaltet."
+            }
+        } catch {
+            autoMeldung = "Sicherung fehlgeschlagen: \(error.localizedDescription)"
+        }
+        await ladeSicherungen()
+    }
 
     private var exportSection: some View {
         card("Exportieren") {
