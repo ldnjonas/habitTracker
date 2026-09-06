@@ -2,7 +2,21 @@
 -- (apple/HabitKit/Sources/HabitStore/Schema.swift), damit ein Abgleich der
 -- beiden eine Textprüfung bleibt und keine Auslegungsfrage wird.
 --
--- Zwei Unterschiede, beide beabsichtigt:
+-- **Postgres-Dialekt**, seit der Server nicht mehr auf SQLite steht. Die
+-- Unterschiede sind klein genug, dass diese Datei weiterhin Zeile für Zeile
+-- neben `Schema.swift` zu lesen ist: `double precision` statt `REAL`, und ein
+-- `ON CONFLICT DO NOTHING` statt `INSERT OR IGNORE`. Die Wahrheiten stehen
+-- unverändert daneben.
+--
+-- Wahrheiten, die auch für Postgres gelten:
+--   * Datumsangaben sind `TEXT` im ISO-Format. Ein `date`-Typ wäre hier kein
+--     Fortschritt: gerechnet wird ohnehin in der Domäne, und über die
+--     Zeichenkette sortiert und vergleicht sich ein ISO-Datum von selbst
+--     richtig.
+--   * Wahrheitswerte sind `INTEGER` (0/1), nicht `boolean` — `ausDatenbank`
+--     und `fuerDatenbank` in `rows.ts` rechnen so, und beide Clients auch.
+--
+-- Zwei Unterschiede zum Client, beide beabsichtigt:
 --   * `dirty` fehlt — das ist eine reine Client-Markierung.
 --   * `server_seq` ist hier NOT NULL und wird vom Server vergeben. Der Client
 --     führt dieselbe Spalte, aber nur als Kopie dessen, was er bekommen hat.
@@ -37,7 +51,7 @@ CREATE TABLE IF NOT EXISTS habit_rule (
   effective_from TEXT NOT NULL,
   schedule_kind TEXT NOT NULL,
   schedule_payload TEXT NOT NULL,
-  target_value REAL,
+  target_value double precision,
   target_unit TEXT,
   target_comparison TEXT,
   PRIMARY KEY (habit_id, effective_from)
@@ -66,7 +80,7 @@ CREATE TABLE IF NOT EXISTS entry (
   user_id TEXT NOT NULL,
   habit_id TEXT NOT NULL,
   date TEXT NOT NULL,
-  value REAL NOT NULL,
+  value double precision NOT NULL,
   note TEXT,
   source TEXT NOT NULL DEFAULT 'manual',
   created_at TEXT NOT NULL,
@@ -84,7 +98,7 @@ CREATE TABLE IF NOT EXISTS entry_event (
   date TEXT NOT NULL,
   at TEXT NOT NULL,
   ends_at TEXT,
-  value REAL NOT NULL,
+  value double precision NOT NULL,
   note TEXT,
   source TEXT NOT NULL DEFAULT 'manual',
   created_at TEXT NOT NULL,
@@ -115,7 +129,7 @@ CREATE TABLE IF NOT EXISTS day_log (
   date TEXT NOT NULL,
   mood INTEGER,
   energy INTEGER,
-  sleep_hours REAL,
+  sleep_hours double precision,
   note TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -160,7 +174,7 @@ CREATE TABLE IF NOT EXISTS sync_sequence (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   value INTEGER NOT NULL DEFAULT 0
 );
-INSERT OR IGNORE INTO sync_sequence (id, value) VALUES (1, 0);
+INSERT INTO sync_sequence (id, value) VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
 
 -- Wer dieser Server ist. Beim ersten Öffnen einer Datenbankdatei gewürfelt und
 -- danach unveränderlich.

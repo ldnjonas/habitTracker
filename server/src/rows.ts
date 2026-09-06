@@ -128,7 +128,7 @@ export async function schreibeHabitZubehoer(
     for (const tagId of roh.tagIds as string[]) {
       // Ein Tag, den der Server noch nicht kennt, würde am Fremdschlüssel
       // scheitern — hier gibt es keinen, die Zuordnung darf vorauseilen.
-      await db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
+      await db.schreibe(`INSERT INTO habit_tag (habit_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
                   habitId, tagId);
     }
   }

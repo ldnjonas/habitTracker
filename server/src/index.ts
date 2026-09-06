@@ -120,7 +120,14 @@ function liefereWebApp(app: FastifyInstance): void {
 // Nur starten, wenn direkt aufgerufen — bei einem Import aus den Tests nicht.
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()!)) {
   const token = leseToken();
-  const db = await Db.oeffne(process.env.HABIT_DB ?? "habits.sqlite");
+  // `DATABASE_URL` zeigt auf ein entferntes Postgres, `HABIT_DB` auf einen
+  // Ordner für das eingebettete.
+  //
+  // Der Rückfall ist ein **Ordner** und nicht der Arbeitsspeicher. Ein Server,
+  // der nach einem Neustart mit leerem Bestand und frisch gewürfelter Kennung
+  // dasteht, ist schlimmer als einer, der gar nicht startet: die Clients
+  // erkennen eine fremde Datenbank und werfen ihren eigenen Stand weg.
+  const db = await Db.oeffne(process.env.DATABASE_URL ?? process.env.HABIT_DB ?? "./pgdaten");
   const app = baueServer(db, token);
   const port = Number(process.env.PORT ?? 8080);
   const sequenz = await db.aktuelleSequenz();

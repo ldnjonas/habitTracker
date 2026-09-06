@@ -37,3 +37,6 @@ apple/Signing.xcconfig
 
 # Aus project.yml erzeugt wie das Projekt selbst
 apple/HabitTrackerIOS/Info.plist
+
+# Das eingebettete Postgres im lokalen Betrieb
+server/pgdaten/

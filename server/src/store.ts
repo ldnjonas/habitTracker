@@ -291,7 +291,7 @@ export async function setTags(db: Db, habitId: string, tagIds: string[]): Promis
     await habitOderFehler(db, habitId);
     await db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
     for (const tagId of tagIds) {
-      await db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
+      await db.schreibe(`INSERT INTO habit_tag (habit_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
                   habitId, tagId);
     }
     await beruehreHabit(db, habitId);
