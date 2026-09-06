@@ -65,7 +65,14 @@ public struct ExceptionEditor: View {
                             Text($0.label).tag($0)
                         }
                     }
+                    // Auf dem Mac untereinander, auf dem Telefon nebeneinander:
+                    // drei Radioknöpfe in einer Liste sehen dort falsch aus, und
+                    // `.radioGroup` gibt es auf iOS gar nicht.
+                    #if os(macOS)
                     .pickerStyle(.radioGroup)
+                    #else
+                    .pickerStyle(.segmented)
+                    #endif
 
                     Text(explanation)
                         .font(.caption).foregroundStyle(.secondary)
@@ -130,7 +137,12 @@ public struct ExceptionEditor: View {
             }
             .padding(20)
         }
+        // Ein Blatt auf dem Mac braucht eine Größe, auf dem Telefon füllt es
+        // den Bildschirm — eine feste Breite wäre dort ein zu kleines Fenster
+        // in einem großen.
+        #if os(macOS)
         .frame(width: 460, height: 560)
+        #endif
     }
 
     private var explanation: String {

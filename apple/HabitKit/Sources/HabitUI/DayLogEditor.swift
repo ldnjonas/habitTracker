@@ -120,7 +120,9 @@ public struct DayLogEditor: View {
             }
             .padding(20)
         }
+        #if os(macOS)
         .frame(width: 440, height: 520)
+        #endif
     }
 
     /// Eine 1–5-Skala, die sich auch wieder leeren lässt.

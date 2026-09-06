@@ -85,7 +85,12 @@ public struct HabitMenuButton: View {
             Image(systemName: "ellipsis.circle")
                 .foregroundStyle(.secondary)
         }
+        // `.borderlessButton` gibt es nur auf dem Mac. Auf iOS ist der
+        // Vorgabestil ohnehin der richtige — dort ist ein Menü ein Blatt, kein
+        // Aufklappfeld.
+        #if os(macOS)
         .menuStyle(.borderlessButton)
+        #endif
         .menuIndicator(.hidden)
         .fixedSize()
         .help("Bearbeiten, archivieren, löschen")

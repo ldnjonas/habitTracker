@@ -68,6 +68,10 @@ public struct HabitDeleteConfirmation: View {
             .padding(.top, 2)
         }
         .padding(22)
+        // Auf dem Mac ein schmales Popover, auf dem Telefon so breit wie der
+        // Bildschirm: 300 pt stünden dort als Briefmarke in der Mitte.
+        #if os(macOS)
         .frame(width: 300)
+        #endif
     }
 }
