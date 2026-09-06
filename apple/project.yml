@@ -58,10 +58,51 @@ targets:
         ENABLE_HARDENED_RUNTIME: "NO"
         COMBINE_HIDPI_IMAGES: "YES"
 
+  HabitTrackerIOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: HabitTrackerIOS
+    dependencies:
+      - package: HabitKit
+        product: HabitUI
+      - package: HabitKit
+        product: HabitStore
+      - package: HabitKit
+        product: HabitCore
+    # Die Team-ID steht in `Signing.xcconfig`, das nicht im Repo liegt: eine
+    # persönliche Apple-ID gehört niemandem sonst. Ohne die Datei baut das
+    # Target für den Simulator — der braucht keine Signatur.
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
+    settings:
+      base:
+        PRODUCT_NAME: Habit Tracker
+        PRODUCT_BUNDLE_IDENTIFIER: de.jonasreinhard.habittracker.ios
+        GENERATE_INFOPLIST_FILE: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
+        # Hochkant genügt: die Ansichten sind eine Spalte, quer wäre nur
+        # dieselbe Spalte mit mehr Rand.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        # Für den Simulator unnötig, fürs Gerät nötig — und dort füllt
+        # `Signing.xcconfig` die Team-ID nach.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        TARGETED_DEVICE_FAMILY: "1"
+
 schemes:
   HabitTrackerMac:
     build:
       targets:
         HabitTrackerMac: all
+    run:
+      config: Debug
+  HabitTrackerIOS:
+    build:
+      targets:
+        HabitTrackerIOS: all
     run:
       config: Debug

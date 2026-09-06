@@ -1,5 +1,27 @@
 import SwiftUI
 import HabitCore
+import UniformTypeIdentifiers
+/// Eine Sicherungsdatei für `.fileExporter` und `.fileImporter`.
+///
+/// In `HabitUI` und nicht im App-Target: Mac und iPhone exportieren dieselbe
+/// Datei, und zwei Kopien wären zwei Gelegenheiten, sie verschieden zu
+/// schreiben.
+public struct BackupDocument: FileDocument {
+    public static let readableContentTypes = [UTType.json]
+
+    public var data: Data
+
+    public init(data: Data) { self.data = data }
+
+    public init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    public func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
 
 /// Damit `.sheet(item:)` einen Tag tragen kann.
 extension CalendarDate: Identifiable {

@@ -9,9 +9,22 @@ import HabitStore
 /// eine *Korrektur* überschreibt die bestehende Regel. Ohne diese Wahl legt
 /// jeder Tippfehler eine neue Version an.
 public struct HabitEditorForm: View {
-    public enum Mode: Equatable {
+    /// Was der Editor gerade tut.
+    ///
+    /// `Identifiable`, damit `.sheet(item:)` den Modus tragen kann — und hier
+    /// statt im App-Target, weil ihn beide Apps brauchen. Nachgereicht wäre die
+    /// Konformität zweimal da und ein drittes Mal, sobald jemand ein weiteres
+    /// Target anlegt.
+    public enum Mode: Equatable, Identifiable {
         case create
         case edit(Habit)
+
+        public var id: String {
+            switch self {
+            case .create: "create"
+            case .edit(let habit): habit.id.uuidString
+            }
+        }
     }
 
     /// Wie eine geänderte Regel verbucht wird.

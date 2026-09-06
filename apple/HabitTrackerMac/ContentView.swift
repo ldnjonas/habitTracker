@@ -277,12 +277,3 @@ struct ContentView: View {
     }
 }
 
-/// Damit `.sheet(item:)` den Bearbeitungsmodus tragen kann.
-extension HabitEditorForm.Mode: @retroactive Identifiable {
-    public var id: String {
-        switch self {
-        case .create: "create"
-        case .edit(let habit): habit.id.uuidString
-        }
-    }
-}

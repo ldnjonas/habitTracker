@@ -5,23 +5,6 @@ import HabitStore
 import HabitSync
 import HabitUI
 
-/// Eine Sicherungsdatei für `.fileExporter`.
-struct BackupDocument: FileDocument {
-    static let readableContentTypes = [UTType.json]
-
-    var data: Data
-
-    init(data: Data) { self.data = data }
-
-    init(configuration: ReadConfiguration) throws {
-        data = configuration.file.regularFileContents ?? Data()
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
-    }
-}
-
 /// Sichern und Wiederherstellen als Datei.
 ///
 /// Zwei Wege nebeneinander, und beide werden gebraucht. **Von Hand** bestimmt
