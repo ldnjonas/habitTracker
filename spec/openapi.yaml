@@ -581,10 +581,14 @@ paths:
     get:
       tags: [insights]
       summary: Aggregat für die Heute-Ansicht
+      description: |
+        Ohne `date` gilt der Tag des **Servers**, und die Antwort sagt, welcher
+        das war. Absichtlich nicht der des Browsers: der Server entscheidet
+        ohnehin, was als Nachtrag gilt, und ein Telefon in einer anderen
+        Zeitzone bekäme sonst eine Liste für gestern und eine 422 beim Abhaken.
       parameters:
         - name: date
           in: query
-          required: true
           schema: { $ref: "#/components/schemas/CalendarDate" }
       responses:
         "200":

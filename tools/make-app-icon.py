@@ -6,7 +6,8 @@ Aufgaben-App, das Raster gehört zu dieser hier.
 Der Erzeuger liegt im Repo, damit das Icon änderbar bleibt. Zehn PNGs im
 Asset-Katalog sind sonst ein Klumpen, den niemand mehr anfassen kann.
 
-    python3 tools/make-app-icon.py        # braucht Pillow
+    python3 tools/make-app-icon.py         # macOS-Asset-Katalog
+    python3 tools/make-app-icon.py --web   # Symbole der WebApp
 
 Schreibt direkt in apple/HabitTrackerMac/Assets.xcassets/AppIcon.appiconset.
 Danach `cd apple && xcodegen generate` ist nicht nötig — der Katalog liegt
@@ -39,8 +40,8 @@ def superellipse_mask(size, radius_ratio=0.235, n=5.0):
 def lerp(c1, c2, t):
     return tuple(round(a + (b - a) * t) for a, b in zip(c1, c2))
 
-def build():
-    inner = (824) * SS
+def motiv(inner):
+    """Das Bild selbst: Verlauf und Raster, ohne Maske und ohne Rand."""
     # Grund: senkrechter Verlauf im Blau der App.
     top, bottom = (0x6F, 0xA8, 0xFF), (0x28, 0x5F, 0xDC)
     bg = Image.new("RGB", (inner, inner))
@@ -76,6 +77,13 @@ def build():
                 fill=(255, 255, 255, round(255 * alpha[r][c])))
     bg = Image.alpha_composite(bg.convert("RGBA"), overlay)
 
+    return bg
+
+
+def build():
+    """macOS: Squircle, und der Inhalt sitzt in 824 von 1024 Punkten."""
+    inner = 824 * SS
+    bg = motiv(inner)
     mask = superellipse_mask(inner)
     icon_inner = Image.new("RGBA", (inner, inner), (0, 0, 0, 0))
     icon_inner.paste(bg, (0, 0), mask)
@@ -84,10 +92,48 @@ def build():
     canvas.paste(icon_inner, (INSET * SS, INSET * SS), icon_inner)
     return canvas.resize((S, S), Image.LANCZOS)
 
-import json, os
 
-SET = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "apple/HabitTrackerMac/Assets.xcassets/AppIcon.appiconset")
+def build_web(rand=0.0):
+    """Randlos und quadratisch — iOS und Android runden selbst.
+
+    Ein Icon mit eingebautem Squircle sieht auf dem Homescreen aus wie ein Bild
+    in einem Rahmen in einem Rahmen. `rand` ist die Schutzzone für `maskable`:
+    Android schneidet je nach Gerät bis zu 10 % je Seite ab, also muss das
+    Motiv entsprechend kleiner sitzen.
+    """
+    inner = 824 * SS
+    kern = motiv(inner)
+    if rand <= 0:
+        return kern.resize((S, S), Image.LANCZOS)
+
+    voll = Image.new("RGBA", (inner, inner), (0x28, 0x5F, 0xDC, 255))
+    klein = round(inner * (1 - 2 * rand))
+    voll.paste(kern.resize((klein, klein), Image.LANCZOS), (round(inner * rand),) * 2)
+    return voll.resize((S, S), Image.LANCZOS)
+
+import json, os, sys
+
+WURZEL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SET = os.path.join(WURZEL, "apple/HabitTrackerMac/Assets.xcassets/AppIcon.appiconset")
+WEB = os.path.join(WURZEL, "web/public/icons")
+
+if "--web" in sys.argv:
+    os.makedirs(WEB, exist_ok=True)
+    randlos = build_web()
+    # `maskable` mit Schutzzone; die anderen randlos, sonst schrumpft das Motiv
+    # zweimal — einmal hier und einmal durch die Maske des Systems.
+    geschuetzt = build_web(rand=0.10)
+    for name, bild, px in [
+        ("icon-192.png", randlos, 192),
+        ("icon-512.png", randlos, 512),
+        ("icon-maskable-512.png", geschuetzt, 512),
+        # iOS rundet ein Homescreen-Symbol selbst und erwartet es randlos.
+        ("apple-touch-icon-180.png", randlos, 180),
+        ("favicon-32.png", randlos, 32),
+    ]:
+        bild.resize((px, px), Image.LANCZOS).save(os.path.join(WEB, name))
+    print(f"5 Symbole nach {WEB}")
+    sys.exit(0)
 
 icon = build()
 os.makedirs(SET, exist_ok=True)

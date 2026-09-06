@@ -1,0 +1,317 @@
+/* Mobil zuerst — das ist der Anlass für die WebApp.
+   Fingerziele mindestens 44 px, keine Bedienung, die auf Zeigen beruht. */
+
+:root {
+  --grund: #f7f7f8;
+  --karte: #ffffff;
+  --rand: #e2e2e6;
+  --text: #17171a;
+  --text-leise: #6b6b73;
+  --akzent: #4f8df7;
+  --gruen: #34c759;
+  --orange: #ff9500;
+  --rot: #ff3b30;
+  --radius: 14px;
+  --leiste: 58px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --grund: #101013;
+    --karte: #1c1c20;
+    --rand: #2e2e34;
+    --text: #f2f2f5;
+    --text-leise: #9a9aa4;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body, #wurzel { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  /* Der Bereich unter der Home-Anzeige gehört nicht der App. */
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ── Gerüst ───────────────────────────────────────────────────────── */
+
+.schale {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.inhalt {
+  flex: 1;
+  padding: 16px 16px calc(var(--leiste) + 28px);
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.registerleiste {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: color-mix(in srgb, var(--karte) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--rand);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+.registerleiste button {
+  flex: 1;
+  min-height: var(--leiste);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-leise);
+}
+
+.registerleiste button[aria-current="page"] { color: var(--akzent); }
+.registerleiste .zeichen { font-size: 19px; line-height: 1; }
+
+/* ── Kopf ─────────────────────────────────────────────────────────── */
+
+.kopf { margin: 4px 0 18px; }
+
+.kopf h1 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.kopf .zeile {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kopf .zahl {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-leise);
+  font-size: 15px;
+}
+
+.balken {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rand);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.balken span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--akzent);
+  transition: width 0.25s ease;
+}
+
+.balken.voll span { background: var(--gruen); }
+
+/* ── Gruppen und Zeilen ───────────────────────────────────────────── */
+
+.gruppe { margin-bottom: 20px; }
+
+.gruppe h2 {
+  margin: 0 0 8px 4px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-leise);
+}
+
+.liste {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  min-height: 62px;
+  width: 100%;
+  text-align: left;
+}
+
+.zeile + .zeile { border-top: 1px solid var(--rand); }
+
+.marke {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+}
+
+.zeile .mitte { flex: 1; min-width: 0; }
+
+.zeile .name {
+  display: block;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zeile .unter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-leise);
+}
+
+.flamme { color: var(--orange); font-variant-numeric: tabular-nums; }
+.trend-improving { color: var(--gruen); }
+.trend-declining { color: var(--rot); }
+
+/* Das Häkchen ist selbst das Fingerziel — 44 px, wie es sich gehört. */
+.haken {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--rand);
+  font-size: 20px;
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.haken.erfuellt {
+  background: var(--gruen);
+  border-color: var(--gruen);
+  color: #fff;
+}
+
+.haken:disabled { opacity: 0.4; }
+
+.stufe {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.stufe button {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--grund);
+  border: 1px solid var(--rand);
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.stufe .wert {
+  min-width: 62px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+.verstoss {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--rand);
+  font-size: 13px;
+  color: var(--text-leise);
+}
+
+.verstoss.aktiv { color: var(--orange); border-color: var(--orange); }
+
+/* ── Zustände ─────────────────────────────────────────────────────── */
+
+.hinweis {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-leise);
+}
+
+.fehler {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--rot) 12%, transparent);
+  color: var(--rot);
+  font-size: 14px;
+}
+
+.laedt {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-leise);
+}
+
+/* ── Token ────────────────────────────────────────────────────────── */
+
+.tor {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+.tor h1 { font-size: 24px; margin: 0 0 8px; }
+.tor p { color: var(--text-leise); font-size: 15px; margin: 0 0 20px; }
+
+.tor input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--rand);
+  background: var(--karte);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* kleiner, und iOS zoomt beim Tippen hinein */
+}
+
+.tor button[type="submit"] {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  border-radius: 12px;
+  background: var(--akzent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.tor button[type="submit"]:disabled { opacity: 0.5; }

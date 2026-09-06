@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <!-- `viewport-fit=cover` und die Randabstände im CSS: sonst liegt die
+         Registerleiste unter der Home-Anzeige. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f8df7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101013" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Habits" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" />
+    <title>Habit Tracker</title>
+  </head>
+  <body>
+    <div id="wurzel"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

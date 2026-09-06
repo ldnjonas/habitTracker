@@ -1,4 +1,8 @@
-import Fastify, { type FastifyError } from "fastify";
+import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import fastifyStatic from "@fastify/static";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Db } from "./db.ts";
 import { leseToken, pruefeToken } from "./auth.ts";
 import { leseDelta, schreibeDelta, type Delta } from "./sync.ts";
@@ -8,6 +12,9 @@ import { entryRouten, journalRouten, papierkorbRouten } from "./routes/entries.t
 import { focusRouten, freezeRouten } from "./routes/focus.ts";
 import { insightRouten } from "./routes/insights.ts";
 import { backupRouten } from "./routes/backup.ts";
+
+/// Wo die gebaute WebApp liegt: `web/dist`, eine Ebene über `server/`.
+const WEB = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "web", "dist");
 
 export function baueServer(db: Db, token: string) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
@@ -68,7 +75,36 @@ export function baueServer(db: Db, token: string) {
     backupRouten(geschuetzt, db);
   });
 
+  liefereWebApp(app);
   return app;
+}
+
+/// Liefert die gebaute WebApp aus — ein Ursprung, eine Adresse, kein CORS.
+///
+/// **Ohne Token.** Was hier ausgeliefert wird, sind Gerüst und Programmtext und
+/// keine Daten; die holt die Oberfläche selbst, und dafür braucht sie das
+/// Token. Ein Schutz auf den Dateien würde nur verhindern, dass man das
+/// Anmeldefeld überhaupt zu sehen bekommt.
+///
+/// Ist nichts gebaut, bleibt es beim reinen API-Server — dann sagt eine kurze
+/// Zeile, was fehlt, statt eine leere 404 zu liefern.
+function liefereWebApp(app: FastifyInstance): void {
+  if (!existsSync(join(WEB, "index.html"))) {
+    app.log.warn(`Keine gebaute WebApp unter ${WEB} — nur die API ist erreichbar.`);
+    return;
+  }
+
+  app.register(fastifyStatic, { root: WEB });
+
+  // Eine Einzelseiten-App hat nur eine Seite: jeder Pfad, den niemand kennt,
+  // ist ein Aufruf ihres eigenen Wegs und keine fehlende Datei. Nur für
+  // Browser-Anfragen — ein API-Aufruf ins Leere bleibt eine 404, sonst bekäme
+  // ein Klient HTML, wo er JSON erwartet, und suchte den Fehler im Falschen.
+  app.setNotFoundHandler((anfrage, antwort) => {
+    const willHtml = (anfrage.headers.accept ?? "").includes("text/html");
+    if (anfrage.method === "GET" && willHtml) return antwort.sendFile("index.html");
+    return antwort.code(404).send({ error: "Unbekannter Pfad" });
+  });
 }
 
 // Nur starten, wenn direkt aufgerufen — bei einem Import aus den Tests nicht.

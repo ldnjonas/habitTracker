@@ -44,10 +44,16 @@ export function insightRouten(app: FastifyInstance, db: Db): void {
   });
 
   // Das Aggregat für die Heute-Ansicht: ein Aufruf statt einer je Habit.
+  //
+  // Ohne `date` gilt der Tag des **Servers**. Absichtlich nicht der des
+  // Browsers: der Server entscheidet ohnehin, was als Nachtrag gilt, und ein
+  // Telefon in einer anderen Zeitzone bekäme sonst eine Liste für gestern und
+  // eine 422 beim Abhaken. Die Antwort sagt deshalb immer, welcher Tag gemeint
+  // war.
   app.get("/stats/summary", async (anfrage) => {
     const abfrage = anfrage.query as { date?: string };
-    const tag = datum(abfrage.date, "date");
     const today = store.heute();
+    const tag = abfrage.date ? datum(abfrage.date, "date") : today;
 
     const alle = store.listHabits(db);
     // Nur was an diesem Tag zur Debatte steht — dieselbe Auswahl wie in der
