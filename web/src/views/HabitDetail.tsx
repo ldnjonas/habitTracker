@@ -104,6 +104,7 @@ export function HabitDetail({
                 summary: null,
                 level: 0,
                 deckkraft: deckkraft(daten.auswertung.days[datum]),
+                status: daten.auswertung.days[datum] ?? null,
               }))}
             />
           </Karte>

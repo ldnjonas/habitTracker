@@ -4,8 +4,8 @@
 /// diese Datei aus, sondern der Server (`intensityLevel`) — läge sie hier,
 /// zeigten Mac und Browser für denselben Bestand verschiedene Bilder.
 
-import type { CalendarDate, DaySummary } from "../api/types.ts";
-import { langesDatum, wochentag } from "./text.ts";
+import type { CalendarDate, DayStatus, DaySummary } from "../api/types.ts";
+import { langesDatum, wochentag, STATUS_TEXT } from "./text.ts";
 
 /// Fünf Stufen, wortgleich mit `OverviewHeatmapView.opacity(for:)` auf dem Mac.
 const DECKKRAFT = [0, 0.25, 0.45, 0.7, 1.0];
@@ -23,6 +23,10 @@ export type Tag = {
   /// Stufen. „Wie viele von vielen" ist die Frage der Übersicht; bei einem
   /// einzelnen zählt der Status des Tages, und der ist feiner abgestuft.
   deckkraft?: number;
+  /// Ebenfalls nur beim einzelnen Habit: der Status dieses Tages. Ohne ihn
+  /// stünde in der Sprechblase „nichts geplant", auch wenn die Zelle gefüllt
+  /// ist — denn `summary` beantwortet eine Frage, die hier niemand stellt.
+  status?: DayStatus | null;
 };
 
 /// Kantenlänge und Abstand je Ausschnitt.
@@ -114,6 +118,7 @@ function inWochen(tage: Tag[]): Tag[][] {
 export function beschriftung(tag: Tag): string {
   const datum = langesDatum(tag.date);
   if (tag.ausnahme) return `${datum} — ${AUSNAHME_TEXT[tag.ausnahme] ?? tag.ausnahme}`;
+  if (tag.status) return `${datum} — ${STATUS_TEXT[tag.status.code] ?? tag.status.code}`;
   if (!tag.summary || tag.summary.scheduled === 0) return `${datum} — nichts geplant`;
   return `${datum} — ${tag.summary.completed} von ${tag.summary.scheduled} erledigt`;
 }
