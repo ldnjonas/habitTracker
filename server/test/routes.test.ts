@@ -1,4 +1,4 @@
-/// Die Ressourcen-Endpunkte, über `app.inject` — ohne Netz und ohne Datei.
+/// Die Ressourcen-Endpunkte, über `app.request` — ohne Netz und ohne Datei.
 ///
 /// Geprüft wird nicht nur, dass die Antworten stimmen, sondern auch, dass jede
 /// Schreibung im Abgleich ankommt: eine Zeile, die im Browser entsteht und
@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { Db } from "../src/db.ts";
-import { baueServer } from "../src/index.ts";
+import { baueApp } from "../src/app.ts";
 import { addDays } from "../src/domain/calendar.ts";
 import { heute } from "../src/store.ts";
 
@@ -25,20 +25,28 @@ type Antwort = { statusCode: number; json: <T = any>() => T; body: string };
 /// Ein frischer Server je Test — die Datenbank liegt im Arbeitsspeicher.
 async function neu() {
   const db = await Db.oeffne();
-  const app = baueServer(db, TOKEN);
+  const app = baueApp(db, TOKEN);
 
   async function ruf(
     method: Methode, url: string, payload?: unknown,
   ): Promise<Antwort> {
-    const antwort = await app.inject(
-      { method, url, headers: KOPF, payload: payload as object });
-    return antwort as unknown as Antwort;
+    const antwort = await app.request(url, {
+      method,
+      headers: payload === undefined ? KOPF : { ...KOPF, "content-type": "application/json" },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    });
+    const text = await antwort.text();
+    return {
+      statusCode: antwort.status,
+      body: text,
+      json: () => JSON.parse(text),
+    } as Antwort;
   }
 
   /// Wie viele Zeilen der Abgleich seit `since` sieht.
-  function delta(since = 0) {
-    return app.inject({ method: "GET", url: `/sync?since=${since}`, headers: KOPF })
-      .then((a) => a.json());
+  async function delta(since = 0) {
+    const antwort = await app.request(`/sync?since=${since}`, { headers: KOPF });
+    return await antwort.json() as any;
   }
 
   return { db, app, ruf, delta };

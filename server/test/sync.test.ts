@@ -2,7 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { Db } from "../src/db.ts";
 import { leseDelta, schreibeDelta } from "../src/sync.ts";
-import { baueServer } from "../src/index.ts";
+import { baueApp } from "../src/app.ts";
 
 const TOKEN = "t".repeat(32);
 
@@ -209,36 +209,38 @@ describe("Delta lesen und schreiben", () => {
 describe("Über HTTP", () => {
   test("Ohne Token kommt man nicht durch, mit schon", async () => {
     const db = await Db.oeffne();
-    const app = baueServer(db, TOKEN);
+    const app = baueApp(db, TOKEN);
     const kopf = { authorization: `Bearer ${TOKEN}` };
 
-    assert.equal((await app.inject({ method: "GET", url: "/sync" })).statusCode, 401);
-    assert.equal((await app.inject({
-      method: "GET", url: "/sync", headers: { authorization: "Bearer falsch" },
-    })).statusCode, 401);
+    assert.equal((await app.request("/sync")).status, 401);
+    assert.equal((await app.request("/sync",
+      { headers: { authorization: "Bearer falsch" } })).status, 401);
 
-    const hoch = await app.inject({
-      method: "POST", url: "/sync", headers: kopf, payload: { habits: [habit()] } });
-    assert.equal(hoch.statusCode, 200);
-    assert.equal(hoch.json().angenommen, 1);
-    assert.equal(hoch.json().habits, undefined, "nur der Bericht, kein Delta");
+    const hoch = await app.request("/sync", {
+      method: "POST",
+      headers: { ...kopf, "content-type": "application/json" },
+      body: JSON.stringify({ habits: [habit()] }),
+    });
+    assert.equal(hoch.status, 200);
+    const bericht = await hoch.json() as Record<string, unknown>;
+    assert.equal(bericht.angenommen, 1);
+    assert.equal(bericht.habits, undefined, "nur der Bericht, kein Delta");
 
     // Die autoritative Fassung kommt beim nächsten Abholen — die Zeile liegt
     // jetzt über dem Cursor des Clients.
-    const runter = await app.inject({ method: "GET", url: "/sync?since=0", headers: kopf });
-    assert.equal(runter.json().habits.length, 1);
-    await app.close();
-    db.schliesse();
+    const runter = await (await app.request("/sync?since=0", { headers: kopf }))
+      .json() as Record<string, unknown[]>;
+    assert.equal(runter.habits.length, 1);
+    await db.schliesse();
   });
 
   test("Die Gesundheitsprüfung braucht kein Token", async () => {
     const db = await Db.oeffne();
-    const app = baueServer(db, TOKEN);
-    const antwort = await app.inject({ method: "GET", url: "/health" });
-    assert.equal(antwort.statusCode, 200);
-    assert.equal(antwort.json().ok, true);
-    await app.close();
-    db.schliesse();
+    const app = baueApp(db, TOKEN);
+    const antwort = await app.request("/health");
+    assert.equal(antwort.status, 200);
+    assert.equal((await antwort.json() as { ok: boolean }).ok, true);
+    await db.schliesse();
   });
 
   /// Ein Cursor ist wertlos, solange nicht feststeht, worauf er sich bezieht.
@@ -256,10 +258,10 @@ describe("Über HTTP", () => {
     // Und sie bleibt, was sie ist — sonst hielte jeder Abgleich sie für neu.
     assert.equal(await eine.instanz(), a);
 
-    const app = baueServer(eine, TOKEN);
-    assert.equal((await app.inject({ method: "GET", url: "/health" })).json().instance, a);
-    await app.close();
-    eine.schliesse();
-    andere.schliesse();
+    const app = baueApp(eine, TOKEN);
+    assert.equal((await (await app.request("/health")).json() as { instance: string })
+      .instance, a);
+    await eine.schliesse();
+    await andere.schliesse();
   });
 });

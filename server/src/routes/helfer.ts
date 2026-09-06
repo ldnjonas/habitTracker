@@ -4,7 +4,7 @@
 /// keine 500 — sonst räumt der Server einen Fehler ein, den er nicht gemacht
 /// hat, und in den Protokollen steht ein Stapelabzug statt einer Erklärung.
 
-import type { FastifyRequest } from "fastify";
+import type { Context } from "hono";
 import { type CalendarDate, parseDate } from "../domain/calendar.ts";
 import { Fehler } from "../store.ts";
 
@@ -15,21 +15,30 @@ export function datum(roh: unknown, name: string): CalendarDate {
 }
 
 /// `from` und `to` aus der Abfrage — beide Pflicht, `from` nicht nach `to`.
-export function zeitraum(anfrage: FastifyRequest): { from: CalendarDate; to: CalendarDate } {
-  const abfrage = anfrage.query as { from?: string; to?: string };
-  const from = datum(abfrage.from, "from");
-  const to = datum(abfrage.to, "to");
+export function zeitraum(c: Context): { from: CalendarDate; to: CalendarDate } {
+  const from = datum(c.req.query("from"), "from");
+  const to = datum(c.req.query("to"), "to");
   if (from > to) throw new Fehler(400, "from liegt nach to");
   return { from, to };
 }
 
-export function pfad<T extends Record<string, string>>(anfrage: FastifyRequest): T {
-  return anfrage.params as T;
+export function pfad<T extends Record<string, string>>(c: Context): T {
+  return c.req.param() as T;
 }
 
-export function rumpf<T>(anfrage: FastifyRequest): T {
-  if (anfrage.body === null || typeof anfrage.body !== "object") {
+/// Der Rumpf als Objekt.
+///
+/// Asynchron, seit der Server auf Hono steht: dort wird der Rumpf erst gelesen,
+/// wenn jemand danach fragt, und nicht vorab für jede Anfrage.
+export async function rumpf<T>(c: Context): Promise<T> {
+  let gelesen: unknown;
+  try {
+    gelesen = await c.req.json();
+  } catch {
     throw new Fehler(400, "Der Rumpf muss ein JSON-Objekt sein");
   }
-  return anfrage.body as T;
+  if (gelesen === null || typeof gelesen !== "object") {
+    throw new Fehler(400, "Der Rumpf muss ein JSON-Objekt sein");
+  }
+  return gelesen as T;
 }

@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { Context, Next } from "hono";
 
 /// Zugangsschutz, v1: ein statisches Token aus der Umgebung.
 ///
@@ -6,8 +6,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 /// später steht trotzdem: `user_id` liegt in jeder Tabelle, der Header ist
 /// schon `Authorization: Bearer`, und ein echtes JWT ersetzt später nur die
 /// Prüfung in dieser Datei.
-export function leseToken(): string {
-  const token = process.env.HABIT_TOKEN?.trim();
+export function leseToken(umgebung: Record<string, string | undefined> = process.env): string {
+  const token = umgebung.HABIT_TOKEN?.trim();
   if (!token || token.length < 16) {
     // Bewusst abbrechen statt ungeschützt zu starten. Ein Abgleich-Server ohne
     // Schutz im Netz gibt den kompletten Verlauf preis, und ein Server, der
@@ -31,11 +31,12 @@ function gleich(a: string, b: string): boolean {
 }
 
 export function pruefeToken(token: string) {
-  return async (anfrage: FastifyRequest, antwort: FastifyReply) => {
-    const kopf = anfrage.headers.authorization ?? "";
+  return async (c: Context, next: Next) => {
+    const kopf = c.req.header("authorization") ?? "";
     const mitgeschickt = kopf.startsWith("Bearer ") ? kopf.slice(7).trim() : "";
     if (!gleich(mitgeschickt, token)) {
-      return antwort.code(401).send({ error: "Nicht angemeldet" });
+      return c.json({ error: "Nicht angemeldet" }, 401);
     }
+    await next();
   };
 }

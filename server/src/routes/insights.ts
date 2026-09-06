@@ -5,7 +5,7 @@
 /// eine zweite Fassung, zeigten Mac und Browser für denselben Bestand
 /// Verschiedenes.
 
-import type { FastifyInstance } from "fastify";
+import type { Hono } from "hono";
 import type { Db } from "../db.ts";
 import { type CalendarDate, addDays, addMonths, through } from "../domain/calendar.ts";
 import { correlations } from "../domain/correlations.ts";
@@ -25,22 +25,22 @@ import { datum, pfad, zeitraum } from "./helfer.ts";
 /// schnell genug für eine Ansicht, die bei jedem Antippen neu lädt.
 const STREAK_FENSTER = 400;
 
-export function insightRouten(app: FastifyInstance, db: Db): void {
+export function insightRouten(app: Hono, db: Db): void {
 
-  app.get("/habits/:habitId/totals", async (anfrage) => {
-    const { habitId } = pfad<{ habitId: string }>(anfrage);
-    const { from, to } = zeitraum(anfrage);
+  app.get("/habits/:habitId/totals", async (c) => {
+    const { habitId } = pfad<{ habitId: string }>(c);
+    const { from, to } = zeitraum(c);
     const habit = await store.habitOderFehler(db, habitId);
-    return periodTotal(habit, await store.listEntries(db, from, to, habitId),
-                       await store.listEvents(db, habitId, from, to), from, to);
+    return c.json(periodTotal(habit, await store.listEntries(db, from, to, habitId),
+                              await store.listEvents(db, habitId, from, to), from, to));
   });
 
-  app.get("/habits/:habitId/stats", async (anfrage) => {
-    const { habitId } = pfad<{ habitId: string }>(anfrage);
-    const { from, to } = zeitraum(anfrage);
+  app.get("/habits/:habitId/stats", async (c) => {
+    const { habitId } = pfad<{ habitId: string }>(c);
+    const { from, to } = zeitraum(c);
     const habit = await store.habitOderFehler(db, habitId);
-    return stats(habit, await store.listEntries(db, from, to, habitId),
-                 await store.listExceptions(db, from, to), from, to, store.heute());
+    return c.json(stats(habit, await store.listEntries(db, from, to, habitId),
+                        await store.listExceptions(db, from, to), from, to, store.heute()));
   });
 
   // Das Aggregat für die Heute-Ansicht: ein Aufruf statt einer je Habit.
@@ -50,10 +50,10 @@ export function insightRouten(app: FastifyInstance, db: Db): void {
   // Telefon in einer anderen Zeitzone bekäme sonst eine Liste für gestern und
   // eine 422 beim Abhaken. Die Antwort sagt deshalb immer, welcher Tag gemeint
   // war.
-  app.get("/stats/summary", async (anfrage) => {
-    const abfrage = anfrage.query as { date?: string };
+  app.get("/stats/summary", async (c) => {
     const today = store.heute();
-    const tag = abfrage.date ? datum(abfrage.date, "date") : today;
+    const roh = c.req.query("date");
+    const tag = roh ? datum(roh, "date") : today;
 
     const alle = await store.listHabits(db);
     // Nur was an diesem Tag zur Debatte steht — dieselbe Auswahl wie in der
@@ -80,16 +80,16 @@ export function insightRouten(app: FastifyInstance, db: Db): void {
       };
     });
 
-    return {
+    return c.json({
       date: tag,
       dueCount: habits.length,
       completedCount: habits.filter((h) => h.status === "completed").length,
       habits,
-    };
+    });
   });
 
-  app.get("/stats/overview", async (anfrage) => {
-    const { from, to } = zeitraum(anfrage);
+  app.get("/stats/overview", async (c) => {
+    const { from, to } = zeitraum(c);
     const today = store.heute();
     // Archivierte zählen mit: sie sind Teil des Verlaufs, den die Heatmap zeigt.
     const habits = await store.listHabits(db, { includeArchived: true });
@@ -99,7 +99,7 @@ export function insightRouten(app: FastifyInstance, db: Db): void {
       from, to, today);
     const kennzahlen = overviewStats(summaries, from, to, today);
 
-    return {
+    return c.json({
       days: through(from, to).map((d) => summaries[d]),
       perfectDays: kennzahlen.perfectDays,
       daysWithPlan: kennzahlen.daysWithPlan,
@@ -109,17 +109,17 @@ export function insightRouten(app: FastifyInstance, db: Db): void {
       // Ausschnitt — sonst bedeutete dieselbe Farbe in der Wochenansicht etwas
       // anderes als in der Jahresansicht.
       busiestDay: await arbeitsreichsterTag(db, habits, to, today),
-    };
+    });
   });
 
-  app.get("/insights/correlations", async (anfrage) => {
-    const { from, to } = zeitraum(anfrage);
-    return correlations(
+  app.get("/insights/correlations", async (c) => {
+    const { from, to } = zeitraum(c);
+    return c.json(correlations(
       await store.listHabits(db, { includeArchived: true }),
       await store.listEntries(db, from, to),
       await store.listDayLogs(db, from, to),
       await store.listExceptions(db, from, to),
-      from, to, store.heute());
+      from, to, store.heute()));
   });
 }
 
