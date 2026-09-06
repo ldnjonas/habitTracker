@@ -13,7 +13,9 @@ apple/
     HabitCore       Domäne — keine Abhängigkeiten, kein UI, kein Foundation.Calendar
     HabitStore      lokale SQLite-Datenbank hinter dem HabitAPI-Protokoll
     HabitSync       SyncEngine gegen den Server
-    HabitUI         geteilte SwiftUI-Views
+    HabitUI         geteilte SwiftUI-Views — Bausteine und AppState, plattformneutral
+  HabitTrackerMac/  Mac-App: Anordnung, Menüleiste, Tastenkürzel
+  HabitTrackerIOS/  iPhone-App: Anordnung, Registerleiste, Wischgesten
 server/             Fastify + SQLite — Sync-Hub (siehe server/README.md)
 web/                React + Vite — einziger rein remote arbeitender Client
 ```
@@ -41,9 +43,43 @@ nach dem Hinzufügen neuer Dateien `xcodegen generate` erneut ausführen.
 Die Datenbank liegt unter
 `~/Library/Application Support/HabitTracker/habits.sqlite`.
 
-Das App-Icon wird erzeugt, nicht gemalt — `python3 tools/make-app-icon.py`
-schreibt alle zehn Größen in den Asset-Katalog. Zeigt das Dock danach noch das
+Das App-Icon wird erzeugt, nicht gemalt. `python3 tools/make-app-icon.py`
+schreibt alle zehn macOS-Größen in den Asset-Katalog, `--ios` das eine 1024er
+fürs iPhone, `--web` die Symbole der WebApp. Zeigt das Dock danach noch das
 alte, hält LaunchServices es fest: `touch <App>.app && killall Dock`.
+
+### Die iPhone-App
+
+```bash
+cd apple && xcodegen generate
+xcodebuild -scheme HabitTrackerIOS -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+```
+
+**Xcode liefert für iOS nur die Kopfdateien mit.** Fehlt die
+Plattform-Unterstützung, findet `xcodebuild` nicht einmal ein Ziel:
+
+```bash
+xcodebuild -downloadPlatform iOS     # rund 8 GB, einmalig
+```
+
+**Aufs eigene Gerät, ohne Entwicklerkonto.** Xcode signiert mit deiner Apple-ID
+(„Personal Team"); das Profil gilt **7 Tage**, danach startet die App nicht
+mehr und ein Neubau setzt die Uhr zurück. Höchstens 3 Apps gleichzeitig, kein
+Widget (das bräuchte App Groups), keine Push-Nachrichten, kein TestFlight.
+
+Die Team-ID gehört in `apple/Signing.xcconfig` — die Datei ist gitignored, eine
+persönliche Apple-ID gehört niemandem sonst:
+
+```
+DEVELOPMENT_TEAM = XXXXXXXXXX
+```
+
+Erste Installation per Kabel; danach in Xcode unter *Window → Devices and
+Simulators* „Connect via network" anhaken, dann genügt dasselbe WLAN.
+
+**Die Daten überleben das.** Ein Neubau über dieselbe App ist ein Update, der
+Container bleibt — und selbst nach Löschen und Neuinstallieren holt der erste
+Abgleich alles vom Server zurück.
 
 ## Zeiterfassung
 

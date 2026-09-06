@@ -7,6 +7,7 @@ Der Erzeuger liegt im Repo, damit das Icon änderbar bleibt. Zehn PNGs im
 Asset-Katalog sind sonst ein Klumpen, den niemand mehr anfassen kann.
 
     python3 tools/make-app-icon.py         # macOS-Asset-Katalog
+    python3 tools/make-app-icon.py --ios   # iOS-Asset-Katalog
     python3 tools/make-app-icon.py --web   # Symbole der WebApp
 
 Schreibt direkt in apple/HabitTrackerMac/Assets.xcassets/AppIcon.appiconset.
@@ -116,6 +117,24 @@ import json, os, sys
 WURZEL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SET = os.path.join(WURZEL, "apple/HabitTrackerMac/Assets.xcassets/AppIcon.appiconset")
 WEB = os.path.join(WURZEL, "web/public/icons")
+
+IOS = os.path.join(WURZEL, "apple/HabitTrackerIOS/Assets.xcassets")
+
+if "--ios" in sys.argv:
+    # iOS nimmt seit Xcode 14 ein einziges 1024er und rundet selbst. Randlos
+    # und ohne Transparenz — beides verlangt Apple, und beides liefert
+    # `build_web()` schon.
+    ordner = os.path.join(IOS, "AppIcon.appiconset")
+    os.makedirs(ordner, exist_ok=True)
+    build_web().convert("RGB").save(os.path.join(ordner, "icon-1024.png"))
+    with open(os.path.join(ordner, "Contents.json"), "w") as f:
+        json.dump({"images": [{"filename": "icon-1024.png", "idiom": "universal",
+                               "platform": "ios", "size": "1024x1024"}],
+                   "info": {"version": 1, "author": "xcode"}}, f, indent=2)
+    with open(os.path.join(IOS, "Contents.json"), "w") as f:
+        json.dump({"info": {"version": 1, "author": "xcode"}}, f, indent=2)
+    print(f"1 Symbol nach {ordner}")
+    sys.exit(0)
 
 if "--web" in sys.argv:
     os.makedirs(WEB, exist_ok=True)

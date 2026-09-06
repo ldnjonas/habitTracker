@@ -30,10 +30,14 @@ struct TodayView: View {
                 }
             } else {
                 ForEach(gruppen, id: \.0) { titel, habits in
-                    Section(titel) {
+                    // Ohne Titel auch ohne Überschrift: `Section("")` wäre eine
+                    // leere graue Zeile, die nichts sagt.
+                    Section {
                         ForEach(habits) { habit in
                             zeile(habit)
                         }
+                    } header: {
+                        if !titel.isEmpty { Text(titel) }
                     }
                 }
             }

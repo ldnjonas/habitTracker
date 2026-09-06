@@ -52,7 +52,7 @@ struct MoreView: View {
                 }
                 NavigationLink { SyncView() } label: {
                     Label("Abgleich", systemImage: "arrow.triangle.2.circlepath")
-                        .badge(state.abgleichEingerichtet ? "eingerichtet" : "")
+                        .badge(state.abgleichEingerichtet ? Text("eingerichtet") : nil)
                 }
             }
         }
