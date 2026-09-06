@@ -77,6 +77,24 @@ DEVELOPMENT_TEAM = XXXXXXXXXX
 Erste Installation per Kabel; danach in Xcode unter *Window → Devices and
 Simulators* „Connect via network" anhaken, dann genügt dasselbe WLAN.
 
+**Welche Serveradresse aufs Telefon gehört.** Nicht `localhost` — das ist auf
+dem iPhone das iPhone. Der Rechnername im eigenen Netz überlebt einen
+DHCP-Wechsel und ist deshalb die bessere Wahl:
+
+```bash
+scutil --get LocalHostName        # → MacBook-Pro-von-Jonas
+ipconfig getifaddr en0            # die Adresse, falls der Name nicht zieht
+```
+
+Eingetragen wird `http://<name>.local:8080`. Der Server lauscht ohnehin auf
+allen Schnittstellen (`host: "0.0.0.0"`), es braucht also nichts weiter — außer
+dass Mac und Telefon im selben Netz hängen und der Mac wach ist.
+
+Dass unverschlüsseltes HTTP dorthin überhaupt erlaubt ist, steht als
+`NSAllowsArbitraryLoads` in `project.yml`. Ohne diesen Schlüssel bricht jeder
+Abgleich mit `-1022` ab, und zwar nur auf dem Gerät: `localhost` nimmt App
+Transport Security aus, eine Netzadresse nicht.
+
 **Die Daten überleben das.** Ein Neubau über dieselbe App ist ein Update, der
 Container bleibt — und selbst nach Löschen und Neuinstallieren holt der erste
 Abgleich alles vom Server zurück.
