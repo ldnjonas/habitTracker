@@ -43,6 +43,17 @@ struct HabitTrackerApp: App {
 
     static var backupOrdner: URL { AutoBackup.ordner(neben: databaseURL) }
 
+    /// Stichtag, Abgleich, Sicherung — in dieser Reihenfolge, und die Reihenfolge
+    /// ist der Punkt.
+    ///
+    /// Läuft beim Start, beim Öffnen des Menüs und jedes Mal, wenn die App
+    /// wieder nach vorn kommt. Das Fenster kann tagelang offen gestanden haben,
+    /// und ein `task` läuft nur einmal.
+    static func holeNach(_ state: AppState) async {
+        if await !state.refreshToday() { await state.reload() }
+        await sichereAutomatisch(state)
+    }
+
     /// Die tägliche Sicherung, angestoßen beim Start und beim Tageswechsel.
     ///
     /// Beides ist nötig, und keins reicht allein: wer die App jeden Morgen
@@ -50,11 +61,19 @@ struct HabitTrackerApp: App {
     /// lässt, beim Wechsel des Stichtags. Zu oft aufgerufen zu werden schadet
     /// nicht — für einen Tag, der schon eine Datei hat, tut der Lauf nichts.
     ///
+    /// **Erst holen, dann schreiben.** Solange der Server auf diesem Rechner
+    /// lief, war der Mac der Ursprung und seine Datenbank immer die vollständige.
+    /// Sobald er woanders steht, ist der Mac ein Client wie das Telefon — und
+    /// eine Sicherung, die den Stand von vorletzter Woche festhält, sieht aus
+    /// wie ein Netz und ist keines. Schlägt der Abgleich fehl, wird trotzdem
+    /// gesichert: der alte Stand ist mehr wert als keiner.
+    ///
     /// Fehler bleiben hier still. Eine Sicherung, die nicht klappt, darf den
     /// Start nicht aufhalten; sichtbar wird sie auf der Sicherungsseite, die
     /// den Ordner ohnehin anzeigt.
     @discardableResult
     static func sichereAutomatisch(_ state: AppState) async -> AutoBackup.Ergebnis? {
+        await state.syncWennFaellig()
         guard let store = state.lokal else { return nil }
         return try? await AutoBackup.lauf(store: store, ordner: backupOrdner,
                                           today: CalendarDate.today(), generator: generator)
@@ -76,14 +95,17 @@ struct HabitTrackerApp: App {
                 .task {
                     // Die Abgleich-Einrichtung gehört zum Programmstart, nicht
                     // zu einem einzelnen Bildschirm: sie soll auch stehen, wenn
-                    // niemand die Sicherungsseite öffnet.
+                    // niemand die Sicherungsseite öffnet. Und sie muss vor dem
+                    // ersten Abgleich stehen, sonst gibt es keinen.
                     await state.ladeAbgleich()
-                    // Erst den Stichtag prüfen: das Fenster kann seit gestern
-                    // offen gestanden haben.
-                    if await !state.refreshToday() { await state.reload() }
-                    // Danach sichern, nicht davor: die Sicherung soll den Stand
-                    // des Tages festhalten, an dem sie liegt.
-                    await Self.sichereAutomatisch(state)
+                    await Self.holeNach(state)
+                }
+                // Der Weg zurück in eine App, die tagelang im Hintergrund lag.
+                // Ohne das bliebe sie stehen, wo man sie verlassen hat — und
+                // schriebe ihre täglichen Sicherungen aus einem alten Stand.
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.didBecomeActiveNotification)) { _ in
+                    Task { await Self.holeNach(state) }
                 }
                 .alert("Datenbank konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {

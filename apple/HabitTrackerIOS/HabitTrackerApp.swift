@@ -5,6 +5,7 @@ import HabitUI
 
 @main
 struct HabitTrackerApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var state: AppState
     /// Wenn die Datenbank nicht aufgeht, wird das gezeigt statt still zu scheitern.
     @State private var startupError: String?
@@ -48,9 +49,15 @@ struct HabitTrackerApp: App {
                     // nicht zu einem einzelnen Bildschirm — er soll auch stehen,
                     // wenn niemand die Einstellungen öffnet.
                     await state.ladeAbgleich()
-                    // Erst den Stichtag prüfen: die App kann seit gestern im
-                    // Hintergrund gelegen haben.
-                    if await !state.refreshToday() { await state.reload() }
+                    await holeNach()
+                }
+                // Ein Telefon läuft nicht, es wird aufgeweckt. Ohne diesen
+                // Auslöser bliebe Abgehaktes hier liegen, bis jemand von Hand
+                // abgleicht — und fehlte damit auch in der täglichen Sicherung,
+                // die der Mac aus dem Serverstand schreibt.
+                .onChange(of: scenePhase) { _, neu in
+                    guard neu == .active else { return }
+                    Task { await holeNach() }
                 }
                 .alert("Datenbank konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {
@@ -59,6 +66,16 @@ struct HabitTrackerApp: App {
                     Text(startupError ?? "")
                 }
         }
+    }
+
+    /// Stichtag nachziehen, dann abgleichen — beim Start und bei jeder Rückkehr.
+    ///
+    /// Den Mindestabstand bringt `syncWennFaellig` mit: zwischen zwei Blicken
+    /// aufs Telefon liegen manchmal zehn Sekunden, und die sind kein Anlass,
+    /// erneut übers Netz zu gehen.
+    private func holeNach() async {
+        if await !state.refreshToday() { await state.reload() }
+        await state.syncWennFaellig()
     }
 }
 

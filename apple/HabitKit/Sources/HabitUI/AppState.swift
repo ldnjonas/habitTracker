@@ -128,6 +128,30 @@ public final class AppState {
         }
     }
 
+    /// Wann zuletzt *versucht* wurde — nicht dasselbe wie `letzterAbgleich`,
+    /// das nur Erfolge kennt. Sonst klopfte ein unerreichbarer Server bei jedem
+    /// Öffnen des Menüs erneut an.
+    private var letzterVersuch: Date?
+
+    /// Gleicht ab, wenn einer eingerichtet ist und der letzte lange genug her ist.
+    ///
+    /// Für Auslöser, die von selbst kommen: App wieder nach vorn geholt, Menü
+    /// geöffnet, Tageswechsel, vor der täglichen Sicherung. `syncNow()` bleibt
+    /// der Knopf — der fragt nicht, wann zuletzt, und sagt es auch, wenn gar
+    /// kein Server steht.
+    ///
+    /// Der Mindestabstand ist der ganze Unterschied: ohne ihn löste jeder
+    /// Wechsel zwischen zwei Fenstern eine Runde übers Netz aus.
+    @discardableResult
+    public func syncWennFaellig(mindestabstand: TimeInterval = 300) async -> Bool {
+        guard abgleichEingerichtet, !syncLäuft else { return false }
+        if let letzter = letzterVersuch,
+           Date().timeIntervalSince(letzter) < mindestabstand { return false }
+        letzterVersuch = Date()
+        await syncNow()
+        return true
+    }
+
     /// Geladener Zeitraum. Ein Jahr rückwärts deckt die Heatmap ab.
     private var loadedFrom: CalendarDate
     private var loadedTo: CalendarDate

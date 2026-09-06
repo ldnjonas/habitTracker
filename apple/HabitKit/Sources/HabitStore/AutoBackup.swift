@@ -17,10 +17,9 @@ public enum AutoBackup {
 
     /// Wie eine Runde ausgegangen ist.
     public enum Ergebnis: Sendable, Equatable {
-        /// Eine neue Datei liegt da.
+        /// Die Datei des Tages steht — neu angelegt oder auf den neuen Stand
+        /// gebracht.
         case geschrieben(URL)
-        /// Für heute gibt es schon eine.
-        case schonVorhanden(URL)
         /// Seit der letzten Sicherung hat sich nichts geändert.
         ///
         /// Dann wird nichts geschrieben. Eine Reihe gleicher Dateien sagt
@@ -32,7 +31,7 @@ public enum AutoBackup {
 
         public var url: URL? {
             switch self {
-            case .geschrieben(let url), .schonVorhanden(let url), .unveraendert(let url): url
+            case .geschrieben(let url), .unveraendert(let url): url
             case .aus: nil
             }
         }
@@ -60,7 +59,14 @@ public enum AutoBackup {
 
     // MARK: - Lauf
 
-    /// Sichert, falls für heute noch nichts da ist und sich etwas geändert hat.
+    /// Bringt die Datei des heutigen Tages auf den Stand, sobald sich etwas
+    /// geändert hat.
+    ///
+    /// **Eine Datei je Tag, aber nicht eine je Tag und dann nie wieder.** Wer
+    /// den Mac morgens aufmacht und danach am Telefon weiterarbeitet, hätte
+    /// sonst eine Tagessicherung mit dem Stand von acht Uhr — sie sähe aus wie
+    /// ein Netz und wäre keines. Ändert sich nichts, wird auch nichts
+    /// geschrieben; dafür sorgt der Vergleich weiter unten.
     ///
     /// Wirft nicht bei einem vollen oder unbeschreibbaren Ordner — der Aufrufer
     /// bekommt den Fehler und kann ihn zeigen; die App darüber anzuhalten wäre
@@ -75,12 +81,11 @@ public enum AutoBackup {
         guard try await store.automatischeSicherung() else { return .aus }
 
         let ziel = ordner.appendingPathComponent(dateiname(today))
-        if FileManager.default.fileExists(atPath: ziel.path) { return .schonVorhanden(ziel) }
-
         let datei = try await store.exportBackup(generator: generator)
         let daten = try BackupCoding.encode(datei)
 
-        // Gegen die jüngste vorhandene Sicherung halten. Verglichen wird der
+        // Gegen die jüngste vorhandene Sicherung halten — das ist die von heute,
+        // sobald es eine gibt, sonst die vom letzten Mal. Verglichen wird der
         // Inhalt, nicht die Bytes: `exportedAt` unterscheidet sich immer, und
         // daran soll sich nichts entscheiden.
         if let letzte = try vorhandene(in: ordner).last,

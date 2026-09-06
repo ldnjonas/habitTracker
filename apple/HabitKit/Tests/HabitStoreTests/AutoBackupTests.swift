@@ -41,7 +41,7 @@ struct AutoBackupTests {
         #expect(inhalt.scope == .full, "gesichert wird alles, nicht eine Auswahl")
     }
 
-    @Test("Zweimal am selben Tag ist einmal")
+    @Test("Zweimal am selben Tag ohne Änderung schreibt nicht zweimal")
     func onlyOncePerDay() async throws {
         let store = try LocalHabitAPI.inMemory()
         let ordner = tempOrdner()
@@ -50,10 +50,33 @@ struct AutoBackupTests {
 
         _ = try await lauf(store, ordner, "2026-09-06")
         let zweiter = try await lauf(store, ordner, "2026-09-06")
-        if case .schonVorhanden = zweiter {} else {
-            Issue.record("erwartet: schonVorhanden, war \(zweiter)")
+        if case .unveraendert = zweiter {} else {
+            Issue.record("erwartet: unveraendert, war \(zweiter)")
         }
         #expect(try AutoBackup.vorhandene(in: ordner).count == 1)
+    }
+
+    /// Der Mac wird morgens aufgemacht, abgehakt wird danach am Telefon. Bliebe
+    /// die Datei stehen, hielte die Tagessicherung den Stand von acht Uhr fest —
+    /// und sähe dabei aus wie eine vollständige.
+    @Test("Ändert sich am selben Tag etwas, wird die Datei nachgeführt")
+    func rewritesSameDayWhenChanged() async throws {
+        let store = try LocalHabitAPI.inMemory()
+        let ordner = tempOrdner()
+        defer { try? FileManager.default.removeItem(at: ordner) }
+        _ = try await store.createHabit(daily("Sport"))
+
+        _ = try await lauf(store, ordner, "2026-09-06")
+        _ = try await store.createHabit(daily("Lesen"))
+        let zweiter = try await lauf(store, ordner, "2026-09-06")
+
+        let ziel = ordner.appendingPathComponent("habits-2026-09-06.json")
+        #expect(zweiter == .geschrieben(ziel))
+        #expect(try AutoBackup.vorhandene(in: ordner).count == 1,
+                "immer noch eine Datei je Tag — nur mit neuerem Inhalt")
+
+        let inhalt = try BackupCoding.decode(Data(contentsOf: ziel))
+        #expect(inhalt.habits.count == 2, "der zweite Habit steht in der Sicherung")
     }
 
     /// Eine Reihe gleicher Dateien sagt nichts, was nicht schon im Datum steht —

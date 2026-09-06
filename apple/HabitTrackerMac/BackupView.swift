@@ -197,7 +197,6 @@ struct BackupView: View {
                 today: state.today, generator: HabitTrackerApp.generator)
             autoMeldung = switch ergebnis {
             case .geschrieben: nil
-            case .schonVorhanden: "Für heute liegt schon eine Sicherung."
             case .unveraendert(let seit):
                 "Seit dem \(AutoBackup.tag(von: seit)?.longLabel ?? "letzten Mal") hat sich nichts geändert."
             case .aus: "Ausgeschaltet."
