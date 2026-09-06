@@ -34,3 +34,6 @@ server/*.sqlite-wal
 
 # Persönliche Team-ID fürs Signieren — gehört niemandem sonst
 apple/Signing.xcconfig
+
+# Aus project.yml erzeugt wie das Projekt selbst
+apple/HabitTrackerIOS/Info.plist

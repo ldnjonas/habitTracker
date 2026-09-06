@@ -76,17 +76,47 @@ targets:
     configFiles:
       Debug: Signing.xcconfig
       Release: Signing.xcconfig
+    # Zwei Schlüssel brauchen eine echte Plist: `NSAppTransportSecurity` ist
+    # ein Verzeichnis und lässt sich nicht als `INFOPLIST_KEY_…` schreiben.
+    # Die Datei wird aus dieser Beschreibung erzeugt wie das Projekt selbst.
+    info:
+      path: HabitTrackerIOS/Info.plist
+      properties:
+        LSApplicationCategoryType: public.app-category.healthcare-fitness
+        # Hochkant genügt: die Ansichten sind eine Spalte, quer wäre nur
+        # dieselbe Spalte mit mehr Rand.
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UILaunchScreen: {}
+        # **Ohne das erreicht die App den Server nicht.** App Transport
+        # Security verlangt HTTPS und nimmt nur `localhost` aus — im Simulator
+        # fällt das nicht auf, auf dem Gerät scheitert jeder Abgleich mit
+        # „-1022“, und zwar wortlos bis auf die Fehlerzeile.
+        #
+        # `NSAllowsLocalNetworking` deckt `.local`-Namen und Link-Local-Adressen
+        # ab, aber nicht `192.168.1.42` — und schon gar keine Tailscale-Adresse.
+        # Welche Adresse der Server hat, entscheidet der Nutzer im
+        # Einrichten-Feld; eine Ausnahmeliste kann sie nicht kennen.
+        #
+        # Deshalb die weite Ausnahme — und **nur** sie: steht
+        # `NSAllowsLocalNetworking` daneben, wird `NSAllowsArbitraryLoads` seit
+        # iOS 10 stillschweigend ignoriert. Zwei Schlüssel wären hier einer zu
+        # viel, und der Fehler sähe genauso aus wie gar keine Ausnahme.
+        #
+        # Sie wiegt leicht: die App ruft genau eine Adresse auf, nämlich die
+        # eingetragene. Sobald der Server unter https erreichbar ist, gehört das
+        # hier wieder heraus.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        # Seit iOS 14 fragt das System, bevor eine App ins lokale Netz darf.
+        # Ohne Begründung fragt es nicht — es verweigert.
+        NSLocalNetworkUsageDescription: >-
+          Für den Abgleich mit deinem eigenen Server im selben WLAN. Es gehen
+          keine Daten an Dritte.
     settings:
       base:
         PRODUCT_NAME: Habit Tracker
         PRODUCT_BUNDLE_IDENTIFIER: de.jonasreinhard.habittracker.ios
-        GENERATE_INFOPLIST_FILE: "YES"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
-        # Hochkant genügt: die Ansichten sind eine Spalte, quer wäre nur
-        # dieselbe Spalte mit mehr Rand.
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         # Für den Simulator unnötig, fürs Gerät nötig — und dort füllt
         # `Signing.xcconfig` die Team-ID nach.
         CODE_SIGN_STYLE: Automatic
