@@ -31,22 +31,22 @@ const UHR_TOLERANZ_MS = 5 * 60 * 1000;
 /// nicht bis zu einer Zeilenzahl je Tabelle. Sonst könnte ein Delta mitten in
 /// einer Sequenznummer abschneiden und der Client hielte etwas für vollständig,
 /// das es nicht ist.
-export function leseDelta(db: Db, since: number, limit = 500): Delta {
-  const hoechste = db.aktuelleSequenz();
+export async function leseDelta(db: Db, since: number, limit = 500): Promise<Delta> {
+  const hoechste = await db.aktuelleSequenz();
   const grenze = Math.min(hoechste, since + limit);
 
   const delta: Delta = {};
   for (const tabelle of TABELLEN) {
-    const zeilen = db.alle(
+    const zeilen = await db.alle(
       `SELECT * FROM "${tabelle.tabelle}" WHERE server_seq > ? AND server_seq <= ? ORDER BY server_seq`,
       since, grenze);
-    delta[tabelle.schluessel] = zeilen.map((zeile) => {
+    delta[tabelle.schluessel] = await Promise.all(zeilen.map(async (zeile) => {
       const objekt = ausDatenbank(zeile, tabelle);
       if (tabelle.tabelle === "habit") {
-        Object.assign(objekt, habitZubehoer(db, String(zeile.id)));
+        Object.assign(objekt, await habitZubehoer(db, String(zeile.id)));
       }
       return objekt;
-    });
+    }));
   }
 
   delta.nextSeq = grenze;
@@ -63,29 +63,29 @@ export type Bericht = { angenommen: number; verworfen: number; nextSeq: number }
 /// Der Server vergibt die Sequenznummer und setzt `updatedAt` auf **seine**
 /// Zeit. Die Uhr eines Clients ist nicht vertrauenswürdig, und genau sie
 /// entscheidet bei Last-Write-Wins.
-export function schreibeDelta(
+export async function schreibeDelta(
   db: Db, delta: Delta, jetzt = new Date(), nutzer = NUTZER,
-): Bericht {
+): Promise<Bericht> {
   let angenommen = 0;
   let verworfen = 0;
 
-  db.inTransaktion(() => {
+  await db.inTransaktion(async () => {
     for (const tabelle of TABELLEN) {
       const zeilen = delta[tabelle.schluessel];
       if (!Array.isArray(zeilen)) continue;
       for (const roh of zeilen) {
-        if (schreibeZeile(db, tabelle, roh as Record<string, unknown>, jetzt, nutzer)) angenommen++;
+        if (await schreibeZeile(db, tabelle, roh as Record<string, unknown>, jetzt, nutzer)) angenommen++;
         else verworfen++;
       }
     }
   });
 
-  return { angenommen, verworfen, nextSeq: db.aktuelleSequenz() };
+  return { angenommen, verworfen, nextSeq: await db.aktuelleSequenz() };
 }
 
-function schreibeZeile(
+async function schreibeZeile(
   db: Db, tabelle: Tabelle, roh: Record<string, unknown>, jetzt: Date, nutzer: string,
-): boolean {
+): Promise<boolean> {
   // Wem die Zeile gehört, bestimmt der Server aus dem Token — nicht der Client.
   //
   // Zwei Gründe. Erstens tragen einige Domänentypen gar kein `userId`: ein
@@ -100,7 +100,7 @@ function schreibeZeile(
   if (schluesselWerte.some((w) => w === undefined || w === null)) return false;
 
   const bedingung = tabelle.primaer.map((s) => `"${s}" = ?`).join(" AND ");
-  const vorhanden = db.eine(
+  const vorhanden = await db.eine(
     `SELECT * FROM "${tabelle.tabelle}" WHERE ${bedingung}`, ...schluesselWerte);
 
   // Das Freeze-Konto wird nur angehängt: eine vorhandene Buchung bleibt, wie
@@ -122,16 +122,16 @@ function schreibeZeile(
   const namen = tabelle.spalten.map((s) => `"${s.spalte}"`);
   const platzhalter = tabelle.spalten.map(() => "?");
 
-  db.schreibe(
+  await db.schreibe(
     `INSERT INTO "${tabelle.tabelle}" (${namen.join(", ")}, server_seq)
      VALUES (${platzhalter.join(", ")}, ?)
      ON CONFLICT (${tabelle.primaer.map((s) => `"${s}"`).join(", ")}) DO UPDATE SET
        ${namen.map((n) => `${n} = excluded.${n}`).join(", ")},
        server_seq = excluded.server_seq`,
-    ...werte, db.naechsteSequenz());
+    ...werte, await db.naechsteSequenz());
 
   if (tabelle.tabelle === "habit") {
-    schreibeHabitZubehoer(db, String(schluesselWerte[0]), roh);
+    await schreibeHabitZubehoer(db, String(schluesselWerte[0]), roh);
   }
   return true;
 }

@@ -9,30 +9,30 @@ import { datum, pfad, rumpf } from "./helfer.ts";
 export function habitRouten(app: FastifyInstance, db: Db): void {
   app.get("/habits", async (anfrage) => {
     const abfrage = anfrage.query as { includeArchived?: string; tag?: string };
-    return store.listHabits(db, {
+    return await store.listHabits(db, {
       includeArchived: abfrage.includeArchived === "true",
       tag: abfrage.tag,
     });
   });
 
   app.post("/habits", async (anfrage, antwort) => {
-    const habit = store.createHabit(db, rumpf<store.HabitDraft>(anfrage));
+    const habit = await store.createHabit(db, rumpf<store.HabitDraft>(anfrage));
     return antwort.code(201).send(habit);
   });
 
   app.get("/habits/:habitId", async (anfrage) => {
     const { habitId } = pfad<{ habitId: string }>(anfrage);
-    return store.habitOderFehler(db, habitId);
+    return await store.habitOderFehler(db, habitId);
   });
 
   app.patch("/habits/:habitId", async (anfrage) => {
     const { habitId } = pfad<{ habitId: string }>(anfrage);
-    return store.updateHabit(db, habitId, rumpf<Record<string, unknown>>(anfrage));
+    return await store.updateHabit(db, habitId, rumpf<Record<string, unknown>>(anfrage));
   });
 
   app.delete("/habits/:habitId", async (anfrage, antwort) => {
     const { habitId } = pfad<{ habitId: string }>(anfrage);
-    store.deleteHabit(db, habitId);
+    await store.deleteHabit(db, habitId);
     return antwort.code(204).send();
   });
 
@@ -43,7 +43,7 @@ export function habitRouten(app: FastifyInstance, db: Db): void {
   app.put("/habits/:habitId/rules/:effectiveFrom", async (anfrage) => {
     const p = pfad<{ habitId: string; effectiveFrom: string }>(anfrage);
     const regel = rumpf<HabitRule>(anfrage);
-    return store.setRule(db, p.habitId, {
+    return await store.setRule(db, p.habitId, {
       ...regel,
       effectiveFrom: datum(p.effectiveFrom, "effectiveFrom"),
     });
@@ -51,7 +51,7 @@ export function habitRouten(app: FastifyInstance, db: Db): void {
 
   app.delete("/habits/:habitId/rules/:effectiveFrom", async (anfrage) => {
     const p = pfad<{ habitId: string; effectiveFrom: string }>(anfrage);
-    return store.deleteRule(db, p.habitId, datum(p.effectiveFrom, "effectiveFrom"));
+    return await store.deleteRule(db, p.habitId, datum(p.effectiveFrom, "effectiveFrom"));
   });
 
   // Die Menge wird ersetzt, nicht einzeln addiert — das macht den Aufruf
@@ -60,26 +60,26 @@ export function habitRouten(app: FastifyInstance, db: Db): void {
     const { habitId } = pfad<{ habitId: string }>(anfrage);
     const tagIds = anfrage.body;
     if (!Array.isArray(tagIds)) throw new store.Fehler(400, "Erwartet wird eine Liste von Tag-IDs");
-    return store.setTags(db, habitId, tagIds.map(String));
+    return await store.setTags(db, habitId, tagIds.map(String));
   });
 }
 
 export function tagRouten(app: FastifyInstance, db: Db): void {
-  app.get("/tags", async () => store.listTags(db));
+  app.get("/tags", async () => await store.listTags(db));
 
   app.post("/tags", async (anfrage, antwort) => {
     const entwurf = rumpf<{ name: string; colorHex?: string }>(anfrage);
-    return antwort.code(201).send(store.createTag(db, entwurf.name, entwurf.colorHex));
+    return antwort.code(201).send(await store.createTag(db, entwurf.name, entwurf.colorHex));
   });
 
   app.patch("/tags/:tagId", async (anfrage) => {
     const { tagId } = pfad<{ tagId: string }>(anfrage);
-    return store.updateTag(db, tagId, rumpf<Record<string, unknown>>(anfrage));
+    return await store.updateTag(db, tagId, rumpf<Record<string, unknown>>(anfrage));
   });
 
   app.delete("/tags/:tagId", async (anfrage, antwort) => {
     const { tagId } = pfad<{ tagId: string }>(anfrage);
-    store.deleteTag(db, tagId);
+    await store.deleteTag(db, tagId);
     return antwort.code(204).send();
   });
 }

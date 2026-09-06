@@ -19,7 +19,7 @@ export function backupRouten(app: FastifyInstance, db: Db): void {
     const ids = abfrage.habitIds
       ? abfrage.habitIds.split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
-    const datei = exportBackup(db, ids);
+    const datei = await exportBackup(db, ids);
     return antwort
       .type("application/json; charset=utf-8")
       .header("content-disposition",
@@ -35,6 +35,6 @@ export function backupRouten(app: FastifyInstance, db: Db): void {
     if (!wunsch.file) throw new Fehler(400, "file fehlt");
     // Durch dieselbe nachsichtige Lesung wie eine Datei: fehlende Listen sind
     // kein Fehler, sonst wäre jede Erweiterung des Formats ein Bruch.
-    return importBackup(db, normalizeBackup(wunsch.file), wunsch.mode);
+    return await importBackup(db, normalizeBackup(wunsch.file), wunsch.mode);
   });
 }

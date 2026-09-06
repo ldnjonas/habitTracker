@@ -23,8 +23,8 @@ type Methode = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Antwort = { statusCode: number; json: <T = any>() => T; body: string };
 
 /// Ein frischer Server je Test — die Datenbank liegt im Arbeitsspeicher.
-function neu() {
-  const db = new Db();
+async function neu() {
+  const db = await Db.oeffne();
   const app = baueServer(db, TOKEN);
 
   async function ruf(
@@ -59,7 +59,7 @@ async function legeHabitAn(
 
 describe("Habits", () => {
   test("Anlegen, lesen, ändern, löschen", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
 
     const habit = await legeHabitAn(ruf, { name: "  Sport  ", colorHex: "#FF9500" });
     assert.equal(habit.name, "Sport", "Leerzeichen werden abgeschnitten");
@@ -86,13 +86,13 @@ describe("Habits", () => {
   });
 
   test("Ohne Namen oder ohne Zeitplan gibt es keinen Habit", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     assert.equal((await ruf("POST", "/habits", { name: "", rules: [] })).statusCode, 422);
     assert.equal((await ruf("POST", "/habits", { name: "Sport", rules: [] })).statusCode, 422);
   });
 
   test("Archivierte erscheinen nur auf Nachfrage", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
     await ruf("PATCH", `/habits/${habit.id}`, { archivedOn: "2026-02-01" });
 
@@ -101,7 +101,7 @@ describe("Habits", () => {
   });
 
   test("Eine Regelversion wird gesetzt und entfernt — die letzte bleibt", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
 
     const mitZweiter = await ruf("PUT", `/habits/${habit.id}/rules/2026-06-01`, {
@@ -125,7 +125,7 @@ describe("Habits", () => {
   });
 
   test("Die Tag-Menge wird ersetzt, nicht addiert", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
     const a = (await ruf("POST", "/tags", { name: "Gesundheit" })).json();
     const b = (await ruf("POST", "/tags", { name: "Morgens" })).json();
@@ -147,7 +147,7 @@ describe("Habits", () => {
 
 describe("Einträge", () => {
   test("Der Tages-Upsert ist idempotent", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
 
     const erst = await ruf("PUT", `/habits/${habit.id}/entries/${HEUTE}`, { value: 1 });
@@ -168,7 +168,7 @@ describe("Einträge", () => {
   });
 
   test("Die Nachtrage-Grenze hält, in beide Richtungen", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
 
     const zuAlt = await ruf("PUT", `/habits/${habit.id}/entries/2020-01-01`, { value: 1 });
@@ -180,7 +180,7 @@ describe("Einträge", () => {
   });
 
   test("Ein Datum, das keines ist, ist eine 400 und keine 500", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
     assert.equal((await ruf("PUT", `/habits/${habit.id}/entries/gestern`, { value: 1 })).statusCode, 400);
     assert.equal((await ruf("GET", "/entries?from=x&to=y")).statusCode, 400);
@@ -190,7 +190,7 @@ describe("Einträge", () => {
 
 describe("Sitzungen", () => {
   test("Der Tageswert bleibt die Summe der Sitzungen", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf, { tracksTime: true, kind: "quantity" });
 
     const beginn = `${HEUTE}T07:00:00.000Z`;
@@ -220,7 +220,7 @@ describe("Sitzungen", () => {
   });
 
   test("Ein Ende vor dem Beginn ist ein Tippfehler, kein Grenzfall", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf, { tracksTime: true });
     const antwort = await ruf("PUT", `/habits/${habit.id}/events/33333333-3333-3333-3333-333333333333`, {
       date: HEUTE, at: `${HEUTE}T09:00:00.000Z`, endsAt: `${HEUTE}T08:00:00.000Z`, value: 1,
@@ -231,7 +231,7 @@ describe("Sitzungen", () => {
 
 describe("Journal und Ausnahmen", () => {
   test("Der Journaleintrag ist ein Upsert über den Tag", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     assert.equal((await ruf("GET", `/days/${HEUTE}`)).statusCode, 404);
 
     await ruf("PUT", `/days/${HEUTE}`, { mood: 4, energy: 3, sleepHours: 7.5 });
@@ -246,7 +246,7 @@ describe("Journal und Ausnahmen", () => {
   });
 
   test("Ausnahmen anlegen und zurücknehmen", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const angelegt = await ruf("POST", "/exceptions", { date: GESTERN, kind: "paused" });
     assert.equal(angelegt.statusCode, 201);
 
@@ -260,7 +260,7 @@ describe("Journal und Ausnahmen", () => {
 
 describe("Papierkorb", () => {
   test("Ein gelöschter Habit nimmt seine Einträge mit — und bringt sie zurück", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
     await ruf("PUT", `/habits/${habit.id}/entries/${HEUTE}`, { value: 1 });
     await ruf("PUT", `/habits/${habit.id}/entries/${GESTERN}`, { value: 1 });
@@ -286,7 +286,7 @@ describe("Papierkorb", () => {
 
 describe("Fokus", () => {
   test("Nur ein offener Lauf gleichzeitig", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     await legeHabitAn(ruf);
 
     const erster = await ruf("POST", "/focus", { days: 7 });
@@ -307,14 +307,14 @@ describe("Fokus", () => {
   });
 
   test("Ein Lauf von null Tagen ist keiner", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     assert.equal((await ruf("POST", "/focus", { days: 0 })).statusCode, 422);
   });
 });
 
 describe("Freeze-Konto", () => {
   test("Ohne Guthaben lässt sich nichts einfrieren", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
 
     const konto = (await ruf("GET", "/freezes")).json();
@@ -326,18 +326,18 @@ describe("Freeze-Konto", () => {
   });
 
   test("Ein durchgezogener Lauf zahlt ein, und der Freeze rettet einen verpassten Tag", async () => {
-    const { db, ruf } = neu();
+    const { db, ruf } = await neu();
     const habit = await legeHabitAn(ruf);
 
     // Einen abgeschlossenen, durchgezogenen Lauf von Hand einsetzen: er liegt
     // in der Vergangenheit, und dorthin kommt man über die API nicht.
     const start = addDays(HEUTE, -3);
-    db.schreibe(
+    await db.schreibe(
       `INSERT INTO focus_run (id, user_id, starts_on, ends_on, habit_ids,
                               created_at, updated_at, server_seq)
        VALUES ('f1', 'local', ?, ?, '[]', '2026-01-01T00:00:00.000Z',
                '2026-01-01T00:00:00.000Z', ?)`,
-      start, addDays(HEUTE, -2), db.naechsteSequenz());
+      start, addDays(HEUTE, -2), await db.naechsteSequenz());
     for (const tag of [start, addDays(HEUTE, -2)]) {
       await ruf("PUT", `/habits/${habit.id}/entries/${tag}`, { value: 1 });
     }
@@ -362,7 +362,7 @@ describe("Freeze-Konto", () => {
 
 describe("Auswertungen", () => {
   test("Die Heute-Ansicht kommt in einem Aufruf", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const a = await legeHabitAn(ruf, { name: "Sport" });
     await legeHabitAn(ruf, { name: "Lesen" });
     await ruf("PUT", `/habits/${a.id}/entries/${HEUTE}`, { value: 1 });
@@ -382,7 +382,7 @@ describe("Auswertungen", () => {
   });
 
   test("Die Übersicht zählt den Nenner nach derselben Regel wie die Mac-App", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const taeglich = await legeHabitAn(ruf, { name: "Sport" });
     await legeHabitAn(ruf, {
       name: "Laufen",
@@ -401,7 +401,7 @@ describe("Auswertungen", () => {
   });
 
   test("Summen und Streaks je Habit", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf, {
       kind: "quantity",
       rules: [{
@@ -423,7 +423,7 @@ describe("Auswertungen", () => {
   });
 
   test("Korrelationen schweigen bei dünner Datenbasis", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     await legeHabitAn(ruf);
     await ruf("PUT", `/days/${HEUTE}`, { mood: 5 });
     const befunde = (await ruf("GET", `/insights/correlations?from=${VORGESTERN}&to=${HEUTE}`)).json();
@@ -433,7 +433,7 @@ describe("Auswertungen", () => {
 
 describe("Sicherung", () => {
   test("Ausgeben und wieder einspielen stellt denselben Bestand her", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf, { name: "Sport" });
     const tag = (await ruf("POST", "/tags", { name: "Gesundheit" })).json();
     await ruf("PUT", `/habits/${habit.id}/tags`, [tag.id]);
@@ -448,7 +448,7 @@ describe("Sicherung", () => {
     assert.deepEqual(datei.habits[0].tagIds, [tag.id]);
 
     // In eine leere Datenbank einspielen.
-    const zweiter = neu();
+    const zweiter = await neu();
     const bericht = await zweiter.ruf("POST", "/backup/import", { mode: "replace", file: datei });
     assert.equal(bericht.statusCode, 200, bericht.body);
     assert.equal(bericht.json().counts.habits.inserted, 1);
@@ -461,12 +461,12 @@ describe("Sicherung", () => {
   });
 
   test("Zweimal dasselbe einspielen ändert beim zweiten Mal nichts", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const habit = await legeHabitAn(ruf);
     await ruf("PUT", `/habits/${habit.id}/entries/${HEUTE}`, { value: 1 });
     const datei = JSON.parse((await ruf("GET", "/backup")).body);
 
-    const zweiter = neu();
+    const zweiter = await neu();
     await zweiter.ruf("POST", "/backup/import", { mode: "merge", file: datei });
     const zweitesMal = await zweiter.ruf("POST", "/backup/import", { mode: "merge", file: datei });
     const counts = zweitesMal.json().counts;
@@ -476,7 +476,7 @@ describe("Sicherung", () => {
   });
 
   test("Eine unbrauchbare Datei wird abgewiesen und sagt warum", async () => {
-    const { ruf } = neu();
+    const { ruf } = await neu();
     const antwort = await ruf("POST", "/backup/import", {
       mode: "merge",
       file: { formatVersion: 99, exportedAt: "2026-01-01T00:00:00.000Z" },
@@ -486,7 +486,7 @@ describe("Sicherung", () => {
   });
 
   test("Ersetzen setzt Grabsteine, statt hart zu löschen", async () => {
-    const { ruf, delta } = neu();
+    const { ruf, delta } = await neu();
     const alt = await legeHabitAn(ruf, { name: "Alt" });
     const datei = JSON.parse((await ruf("GET", "/backup")).body);
     datei.habits = [];
@@ -508,7 +508,7 @@ describe("Jede Schreibung kommt im Abgleich an", () => {
   /// vergibt, schreibt eine Zeile, die kein Client je zu sehen bekommt — und
   /// das fällt erst auf, wenn jemand die Mac-App abgleichen lässt.
   test("Sequenznummern steigen bei jeder Schreibung", async () => {
-    const { ruf, delta } = neu();
+    const { ruf, delta } = await neu();
     const stand = async () => (await delta(0)).nextSeq as number;
 
     let vorher = await stand();
@@ -542,7 +542,7 @@ describe("Jede Schreibung kommt im Abgleich an", () => {
   });
 
   test("Eine kaskadierte Löschung ist ein Vorgang, kein Rieseln", async () => {
-    const { ruf, delta } = neu();
+    const { ruf, delta } = await neu();
     const habit = await legeHabitAn(ruf);
     await ruf("PUT", `/habits/${habit.id}/entries/${HEUTE}`, { value: 1 });
     await ruf("PUT", `/habits/${habit.id}/entries/${GESTERN}`, { value: 1 });

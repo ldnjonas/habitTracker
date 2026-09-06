@@ -105,15 +105,15 @@ export function pruefeNachtrage(datum: CalendarDate, today = heute()): void {
 /// Die Umformung kommt aus `tables.ts` und liefert deshalb ein loses Objekt;
 /// die Zusicherung, dass es ein `Habit` ist, gilt genau hier — an der Grenze
 /// zwischen Datenbank und Domäne.
-function baueHabit(db: Db, zeile: Record<string, unknown>): Habit {
+async function baueHabit(db: Db, zeile: Record<string, unknown>): Promise<Habit> {
   const objekt = ausDatenbank(zeile, HABIT);
-  Object.assign(objekt, habitZubehoer(db, String(zeile.id)));
+  Object.assign(objekt, await habitZubehoer(db, String(zeile.id)));
   return objekt as unknown as Habit;
 }
 
-export function listHabits(
+export async function listHabits(
   db: Db, optionen: { includeArchived?: boolean; tag?: string } = {},
-): Habit[] {
+): Promise<Habit[]> {
   let sql = `SELECT * FROM habit WHERE user_id = ? AND deleted_at IS NULL`;
   const werte: unknown[] = [NUTZER];
   if (!optionen.includeArchived) sql += ` AND archived_on IS NULL`;
@@ -122,17 +122,17 @@ export function listHabits(
     werte.push(optionen.tag);
   }
   sql += ` ORDER BY sort_order, name`;
-  return db.alle(sql, ...werte).map((zeile) => baueHabit(db, zeile));
+  return Promise.all((await db.alle(sql, ...werte)).map((zeile) => baueHabit(db, zeile)));
 }
 
-export function habit(db: Db, id: string): Habit | null {
-  const zeile = db.eine(
+export async function habit(db: Db, id: string): Promise<Habit | null> {
+  const zeile = await db.eine(
     `SELECT * FROM habit WHERE id = ? AND user_id = ? AND deleted_at IS NULL`, id, NUTZER);
-  return zeile ? baueHabit(db, zeile) : null;
+  return zeile ? await baueHabit(db, zeile) : null;
 }
 
-export function habitOderFehler(db: Db, id: string): Habit {
-  const gefunden = habit(db, id);
+export async function habitOderFehler(db: Db, id: string): Promise<Habit> {
+  const gefunden = await habit(db, id);
   if (!gefunden) throw nichtGefunden(`Habit ${id}`);
   return gefunden;
 }
@@ -154,17 +154,17 @@ export type HabitDraft = {
   endsOn?: CalendarDate | null;
 };
 
-export function createHabit(db: Db, entwurf: HabitDraft): Habit {
+export async function createHabit(db: Db, entwurf: HabitDraft): Promise<Habit> {
   if (!entwurf.name?.trim()) throw new Fehler(422, "Ein Habit braucht einen Namen");
   if (!Array.isArray(entwurf.rules) || entwurf.rules.length === 0) {
     // Ohne Regel wäre er an keinem Tag auswertbar.
     throw new Fehler(422, "Ein Habit braucht mindestens einen Zeitplan");
   }
 
-  return db.inTransaktion(() => {
+  return await db.inTransaktion(async () => {
     const zeit = jetzt();
     const id = crypto.randomUUID();
-    const naechste = db.eine(
+    const naechste = await db.eine(
       `SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM habit WHERE deleted_at IS NULL`);
 
     const objekt: Record<string, unknown> = {
@@ -184,12 +184,12 @@ export function createHabit(db: Db, entwurf: HabitDraft): Habit {
       healthKitLink: null,
       createdAt: zeit, updatedAt: zeit, deletedAt: null,
     };
-    speichere(db, HABIT, objekt, db.naechsteSequenz());
-    schreibeHabitZubehoer(db, id, {
+    await speichere(db, HABIT, objekt, await db.naechsteSequenz());
+    await schreibeHabitZubehoer(db, id, {
       rules: entwurf.rules,
       tagIds: entwurf.tagIds ?? [],
     });
-    return habitOderFehler(db, id);
+    return await habitOderFehler(db, id);
   });
 }
 
@@ -203,9 +203,9 @@ const AENDERBAR = [
   "timeOfDay", "preferredTime", "tracksTime", "startsOn", "endsOn", "archivedOn",
 ] as const;
 
-export function updateHabit(db: Db, id: string, patch: Record<string, unknown>): Habit {
-  return db.inTransaktion(() => {
-    const vorhanden = lies(db, HABIT, id);
+export async function updateHabit(db: Db, id: string, patch: Record<string, unknown>): Promise<Habit> {
+  return await db.inTransaktion(async () => {
+    const vorhanden = await lies(db, HABIT, id);
     if (!vorhanden || vorhanden.deletedAt) throw nichtGefunden(`Habit ${id}`);
 
     const objekt = { ...vorhanden };
@@ -213,8 +213,8 @@ export function updateHabit(db: Db, id: string, patch: Record<string, unknown>):
       if (feld in patch) objekt[feld] = patch[feld];
     }
     objekt.updatedAt = jetzt();
-    speichere(db, HABIT, objekt, db.naechsteSequenz());
-    return habitOderFehler(db, id);
+    await speichere(db, HABIT, objekt, await db.naechsteSequenz());
+    return await habitOderFehler(db, id);
   });
 }
 
@@ -230,9 +230,9 @@ export function updateHabit(db: Db, id: string, patch: Record<string, unknown>):
 /// `deleted_with` die id des Habits. Daran erkennt `restore` später genau die
 /// Zeilen, die mit diesem Habit gefallen sind — und lässt die in Ruhe, die
 /// vorher einzeln gelöscht wurden.
-export function deleteHabit(db: Db, id: string): void {
-  db.inTransaktion(() => {
-    const vorhanden = lies(db, HABIT, id);
+export async function deleteHabit(db: Db, id: string): Promise<void> {
+  await db.inTransaktion(async () => {
+    const vorhanden = await lies(db, HABIT, id);
     if (!vorhanden) throw nichtGefunden(`Habit ${id}`);
     // War der Habit schon gelöscht, darf ein zweiter Aufruf die Herkunft der
     // Kinder nicht neu stempeln — sonst risse ein späteres Wiederherstellen
@@ -240,14 +240,14 @@ export function deleteHabit(db: Db, id: string): void {
     if (vorhanden.deletedAt) return;
 
     const zeit = jetzt();
-    const seq = db.naechsteSequenz();
-    db.schreibe(
+    const seq = await db.naechsteSequenz();
+    await db.schreibe(
       `UPDATE habit SET deleted_at = ?, updated_at = ?, server_seq = ?
        WHERE id = ? AND user_id = ?`,
       zeit, zeit, seq, id, NUTZER);
 
     for (const tabelle of HABIT_TABELLEN) {
-      db.schreibe(
+      await db.schreibe(
         `UPDATE "${tabelle}"
          SET deleted_at = ?, updated_at = ?, deleted_with = ?, server_seq = ?
          WHERE habit_id = ? AND deleted_at IS NULL`,
@@ -257,45 +257,45 @@ export function deleteHabit(db: Db, id: string): void {
 }
 
 /// Setzt Zeitplan und Ziel ab einem Datum — Upsert über `(habitId, effectiveFrom)`.
-export function setRule(db: Db, habitId: string, regel: HabitRule): Habit {
+export async function setRule(db: Db, habitId: string, regel: HabitRule): Promise<Habit> {
   if (!regel?.effectiveFrom || !regel.schedule) {
     throw new Fehler(422, "Eine Regel braucht effectiveFrom und schedule");
   }
-  return db.inTransaktion(() => {
-    habitOderFehler(db, habitId);
-    setzeRegel(db, habitId, regel as unknown as Record<string, unknown>);
-    beruehreHabit(db, habitId);
-    return habitOderFehler(db, habitId);
+  return await db.inTransaktion(async () => {
+    await habitOderFehler(db, habitId);
+    await setzeRegel(db, habitId, regel as unknown as Record<string, unknown>);
+    await beruehreHabit(db, habitId);
+    return await habitOderFehler(db, habitId);
   });
 }
 
-export function deleteRule(db: Db, habitId: string, effectiveFrom: CalendarDate): Habit {
-  return db.inTransaktion(() => {
-    habitOderFehler(db, habitId);
-    const uebrig = db.eine(
+export async function deleteRule(db: Db, habitId: string, effectiveFrom: CalendarDate): Promise<Habit> {
+  return await db.inTransaktion(async () => {
+    await habitOderFehler(db, habitId);
+    const uebrig = await db.eine(
       `SELECT COUNT(*) AS n FROM habit_rule WHERE habit_id = ? AND effective_from <> ?`,
       habitId, effectiveFrom);
     // Ohne Regel wäre der Habit an keinem Tag mehr auswertbar.
     if (Number(uebrig?.n ?? 0) === 0) {
       throw new Fehler(422, "Der letzte Zeitplan lässt sich nicht entfernen");
     }
-    db.schreibe(`DELETE FROM habit_rule WHERE habit_id = ? AND effective_from = ?`,
+    await db.schreibe(`DELETE FROM habit_rule WHERE habit_id = ? AND effective_from = ?`,
                 habitId, effectiveFrom);
-    beruehreHabit(db, habitId);
-    return habitOderFehler(db, habitId);
+    await beruehreHabit(db, habitId);
+    return await habitOderFehler(db, habitId);
   });
 }
 
-export function setTags(db: Db, habitId: string, tagIds: string[]): Habit {
-  return db.inTransaktion(() => {
-    habitOderFehler(db, habitId);
-    db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
+export async function setTags(db: Db, habitId: string, tagIds: string[]): Promise<Habit> {
+  return await db.inTransaktion(async () => {
+    await habitOderFehler(db, habitId);
+    await db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
     for (const tagId of tagIds) {
-      db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
+      await db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
                   habitId, tagId);
     }
-    beruehreHabit(db, habitId);
-    return habitOderFehler(db, habitId);
+    await beruehreHabit(db, habitId);
+    return await habitOderFehler(db, habitId);
   });
 }
 
@@ -305,48 +305,48 @@ export function setTags(db: Db, habitId: string, tagIds: string[]): Habit {
 /// wandern und keine eigene Nummer tragen. Ohne diesen Anstoß bliebe eine
 /// Zeitplanänderung für den Abgleich unsichtbar: der Habit sähe unverändert
 /// aus, und das zweite Gerät bekäme weiter den alten Zeitplan.
-function beruehreHabit(db: Db, habitId: string): void {
-  db.schreibe(
+async function beruehreHabit(db: Db, habitId: string): Promise<void> {
+  await db.schreibe(
     `UPDATE habit SET updated_at = ?, server_seq = ? WHERE id = ? AND deleted_at IS NULL`,
-    jetzt(), db.naechsteSequenz(), habitId);
+    jetzt(), await db.naechsteSequenz(), habitId);
 }
 
 // MARK: - Tags
 
-export function listTags(db: Db): Tag[] {
-  return db.alle(
+export async function listTags(db: Db): Promise<Tag[]> {
+  return (await db.alle(
     `SELECT * FROM tag WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name`,
     NUTZER,
-  ).map((zeile) => ausDatenbank(zeile, TAG) as unknown as Tag);
+  )).map((zeile) => ausDatenbank(zeile, TAG) as unknown as Tag);
 }
 
-export function createTag(db: Db, name: string, colorHex = "#8E8E93"): Tag {
+export async function createTag(db: Db, name: string, colorHex = "#8E8E93"): Promise<Tag> {
   if (!name?.trim()) throw new Fehler(422, "Ein Tag braucht einen Namen");
-  return db.inTransaktion(() => {
+  return await db.inTransaktion(async () => {
     const zeit = jetzt();
     const id = crypto.randomUUID();
-    const naechste = db.eine(
+    const naechste = await db.eine(
       `SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM tag WHERE deleted_at IS NULL`);
-    speichere(db, TAG, {
+    await speichere(db, TAG, {
       id, userId: NUTZER, name: name.trim(), colorHex,
       sortOrder: Number(naechste?.n ?? 0),
       createdAt: zeit, updatedAt: zeit, deletedAt: null,
-    }, db.naechsteSequenz());
-    return lies(db, TAG, id) as unknown as Tag;
+    }, await db.naechsteSequenz());
+    return await lies(db, TAG, id) as unknown as Tag;
   });
 }
 
-export function updateTag(db: Db, id: string, patch: Record<string, unknown>): Tag {
-  return db.inTransaktion(() => {
-    const vorhanden = lies(db, TAG, id);
+export async function updateTag(db: Db, id: string, patch: Record<string, unknown>): Promise<Tag> {
+  return await db.inTransaktion(async () => {
+    const vorhanden = await lies(db, TAG, id);
     if (!vorhanden || vorhanden.deletedAt) throw nichtGefunden(`Tag ${id}`);
     const objekt = { ...vorhanden };
     for (const feld of ["name", "colorHex", "sortOrder"]) {
       if (feld in patch) objekt[feld] = patch[feld];
     }
     objekt.updatedAt = jetzt();
-    speichere(db, TAG, objekt, db.naechsteSequenz());
-    return lies(db, TAG, id) as unknown as Tag;
+    await speichere(db, TAG, objekt, await db.naechsteSequenz());
+    return await lies(db, TAG, id) as unknown as Tag;
   });
 }
 
@@ -356,27 +356,27 @@ export function updateTag(db: Db, id: string, patch: Record<string, unknown>): T
 /// Grabsteine bekommen. Hier tragen sie keine, gehören zum Habit und kommen
 /// mit einem wiederhergestellten Tag von selbst zurück. Ein gelöschter Tag
 /// wird beim Anzeigen ohnehin nicht mehr aufgelöst.
-export function deleteTag(db: Db, id: string): void {
-  db.inTransaktion(() => {
+export async function deleteTag(db: Db, id: string): Promise<void> {
+  await db.inTransaktion(async () => {
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE tag SET deleted_at = ?, updated_at = ?, server_seq = ?
        WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
-      zeit, zeit, db.naechsteSequenz(), id, NUTZER);
+      zeit, zeit, await db.naechsteSequenz(), id, NUTZER);
   });
 }
 
 // MARK: - Einträge
 
-export function listEntries(
+export async function listEntries(
   db: Db, from: CalendarDate, to: CalendarDate, habitId?: string,
-): Entry[] {
+): Promise<Entry[]> {
   let sql = `SELECT * FROM entry
              WHERE user_id = ? AND deleted_at IS NULL AND date BETWEEN ? AND ?`;
   const werte: unknown[] = [NUTZER, from, to];
   if (habitId) { sql += ` AND habit_id = ?`; werte.push(habitId); }
   sql += ` ORDER BY date, habit_id`;
-  return db.alle(sql, ...werte).map((z) => ausDatenbank(z, ENTRY) as unknown as Entry);
+  return (await db.alle(sql, ...werte)).map((z) => ausDatenbank(z, ENTRY) as unknown as Entry);
 }
 
 /// Setzt den Tageswert — der zentrale Schreibvorgang der App.
@@ -385,29 +385,29 @@ export function listEntries(
 /// eine id: deshalb ist ein nach Verbindungsabbruch doppelt gesendeter Aufruf
 /// unschädlich, und zwei Geräte, die denselben Tag abhaken, geraten nicht in
 /// Streit.
-export function upsertEntry(
+export async function upsertEntry(
   db: Db, habitId: string, datum: CalendarDate,
   wert: { value: number; note?: string | null; source?: string },
   today = heute(),
-): Entry {
+): Promise<Entry> {
   if (typeof wert?.value !== "number" || !Number.isFinite(wert.value)) {
     throw new Fehler(422, "value muss eine Zahl sein");
   }
-  return db.inTransaktion(() => {
-    habitOderFehler(db, habitId);
+  return await db.inTransaktion(async () => {
+    await habitOderFehler(db, habitId);
     pruefeNachtrage(datum, today);
-    return schreibeEintrag(db, habitId, datum, wert, db.naechsteSequenz());
+    return await schreibeEintrag(db, habitId, datum, wert, await db.naechsteSequenz());
   });
 }
 
 /// Ohne Transaktion und ohne Prüfungen — für Aufrufer, die beides schon haben.
-function schreibeEintrag(
+async function schreibeEintrag(
   db: Db, habitId: string, datum: CalendarDate,
   wert: { value: number; note?: string | null; source?: string },
   seq: number,
-): Entry {
+): Promise<Entry> {
   const zeit = jetzt();
-  const vorhanden = db.eine(
+  const vorhanden = await db.eine(
     `SELECT * FROM entry WHERE habit_id = ? AND date = ?`, habitId, datum);
 
   const objekt: Record<string, unknown> = vorhanden
@@ -422,40 +422,40 @@ function schreibeEintrag(
   // Ein Wiedereintrag hebt den Grabstein auf.
   objekt.deletedAt = null;
 
-  speichere(db, ENTRY, objekt, seq);
-  db.schreibe(`UPDATE entry SET deleted_with = NULL WHERE id = ?`, objekt.id);
-  return lies(db, ENTRY, objekt.id) as unknown as Entry;
+  await speichere(db, ENTRY, objekt, seq);
+  await db.schreibe(`UPDATE entry SET deleted_with = NULL WHERE id = ?`, objekt.id);
+  return await lies(db, ENTRY, objekt.id) as unknown as Entry;
 }
 
-export function deleteEntry(db: Db, habitId: string, datum: CalendarDate): void {
-  db.inTransaktion(() => {
+export async function deleteEntry(db: Db, habitId: string, datum: CalendarDate): Promise<void> {
+  await db.inTransaktion(async () => {
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE entry SET deleted_at = ?, updated_at = ?, deleted_with = NULL, server_seq = ?
        WHERE habit_id = ? AND date = ? AND deleted_at IS NULL`,
-      zeit, zeit, db.naechsteSequenz(), habitId, datum);
+      zeit, zeit, await db.naechsteSequenz(), habitId, datum);
   });
 }
 
 // MARK: - Sitzungen
 
-export function listEvents(
+export async function listEvents(
   db: Db, habitId: string, from: CalendarDate, to: CalendarDate,
-): EntryEvent[] {
-  return db.alle(
+): Promise<EntryEvent[]> {
+  return (await db.alle(
     `SELECT * FROM entry_event
      WHERE habit_id = ? AND deleted_at IS NULL AND date BETWEEN ? AND ?
      ORDER BY at`,
     habitId, from, to,
-  ).map((z) => ausDatenbank(z, EVENT) as unknown as EntryEvent);
+  )).map((z) => ausDatenbank(z, EVENT) as unknown as EntryEvent);
 }
 
 /// Setzt eine Sitzung; der Tageswert des betroffenen Tages wird in derselben
 /// Transaktion neu gerechnet.
-export function upsertEvent(
+export async function upsertEvent(
   db: Db, habitId: string, eventId: string,
   roh: Record<string, unknown>, today = heute(),
-): EntryEvent {
+): Promise<EntryEvent> {
   const datum = requireDate(String(roh.date ?? ""));
   const beginn = String(roh.at ?? "");
   if (!beginn || Number.isNaN(Date.parse(beginn))) {
@@ -467,12 +467,12 @@ export function upsertEvent(
     throw new Fehler(422, "Das Ende liegt vor dem Beginn");
   }
 
-  return db.inTransaktion(() => {
-    habitOderFehler(db, habitId);
+  return await db.inTransaktion(async () => {
+    await habitOderFehler(db, habitId);
     pruefeNachtrage(datum, today);
-    const seq = db.naechsteSequenz();
+    const seq = await db.naechsteSequenz();
     const zeit = jetzt();
-    const vorhanden = lies(db, EVENT, eventId);
+    const vorhanden = await lies(db, EVENT, eventId);
 
     // Bei einer Sitzung mit Ende zählt die Dauer in Minuten, nicht der
     // mitgeschickte Wert: zwei Felder, die dasselbe sagen, driften auseinander.
@@ -480,30 +480,30 @@ export function upsertEvent(
       ? (Date.parse(ende) - Date.parse(beginn)) / 60_000
       : Number(roh.value ?? 0);
 
-    speichere(db, EVENT, {
+    await speichere(db, EVENT, {
       id: eventId, habitId, date: datum,
       at: beginn, endsAt: ende, value: wert,
       note: roh.note ?? null, source: roh.source ?? "manual",
       createdAt: vorhanden?.createdAt ?? zeit, updatedAt: zeit, deletedAt: null,
     }, seq);
-    db.schreibe(`UPDATE entry_event SET deleted_with = NULL WHERE id = ?`, eventId);
+    await db.schreibe(`UPDATE entry_event SET deleted_with = NULL WHERE id = ?`, eventId);
 
-    rechneEintragNeu(db, habitId, datum, seq);
-    return lies(db, EVENT, eventId) as unknown as EntryEvent;
+    await rechneEintragNeu(db, habitId, datum, seq);
+    return await lies(db, EVENT, eventId) as unknown as EntryEvent;
   });
 }
 
-export function deleteEvent(db: Db, habitId: string, eventId: string): void {
-  db.inTransaktion(() => {
-    const vorhanden = lies(db, EVENT, eventId);
+export async function deleteEvent(db: Db, habitId: string, eventId: string): Promise<void> {
+  await db.inTransaktion(async () => {
+    const vorhanden = await lies(db, EVENT, eventId);
     if (!vorhanden || vorhanden.habitId !== habitId) throw nichtGefunden(`Sitzung ${eventId}`);
-    const seq = db.naechsteSequenz();
+    const seq = await db.naechsteSequenz();
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE entry_event SET deleted_at = ?, updated_at = ?, deleted_with = NULL, server_seq = ?
        WHERE id = ? AND deleted_at IS NULL`,
       zeit, zeit, seq, eventId);
-    rechneEintragNeu(db, habitId, vorhanden.date as CalendarDate, seq);
+    await rechneEintragNeu(db, habitId, vorhanden.date as CalendarDate, seq);
   });
 }
 
@@ -511,8 +511,8 @@ export function deleteEvent(db: Db, habitId: string, eventId: string): void {
 ///
 /// Bewusst hier und nicht beim Aufrufer: die Summe darf nie auseinanderlaufen,
 /// und die Streak-Engine liest ausschließlich `entry.value`.
-function rechneEintragNeu(db: Db, habitId: string, datum: CalendarDate, seq: number): void {
-  const zeile = db.eine(
+async function rechneEintragNeu(db: Db, habitId: string, datum: CalendarDate, seq: number): Promise<void> {
+  const zeile = await db.eine(
     `SELECT COALESCE(SUM(value), 0) AS summe, COUNT(*) AS anzahl FROM entry_event
      WHERE habit_id = ? AND date = ? AND deleted_at IS NULL`,
     habitId, datum);
@@ -521,39 +521,39 @@ function rechneEintragNeu(db: Db, habitId: string, datum: CalendarDate, seq: num
   if (anzahl === 0) {
     // Ohne Sitzungen gibt es auch keinen abgeleiteten Tageswert mehr.
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE entry SET deleted_at = ?, updated_at = ?, server_seq = ?
        WHERE habit_id = ? AND date = ? AND deleted_at IS NULL`,
       zeit, zeit, seq, habitId, datum);
     return;
   }
-  schreibeEintrag(db, habitId, datum, { value: Number(zeile?.summe ?? 0) }, seq);
+  await schreibeEintrag(db, habitId, datum, { value: Number(zeile?.summe ?? 0) }, seq);
 }
 
 // MARK: - Journal
 
-export function listDayLogs(db: Db, from: CalendarDate, to: CalendarDate): DayLog[] {
-  return db.alle(
+export async function listDayLogs(db: Db, from: CalendarDate, to: CalendarDate): Promise<DayLog[]> {
+  return (await db.alle(
     `SELECT * FROM day_log
      WHERE user_id = ? AND deleted_at IS NULL AND date BETWEEN ? AND ? ORDER BY date`,
     NUTZER, from, to,
-  ).map((z) => ausDatenbank(z, DAY_LOG) as unknown as DayLog);
+  )).map((z) => ausDatenbank(z, DAY_LOG) as unknown as DayLog);
 }
 
-export function dayLog(db: Db, datum: CalendarDate): DayLog | null {
-  const zeile = db.eine(
+export async function dayLog(db: Db, datum: CalendarDate): Promise<DayLog | null> {
+  const zeile = await db.eine(
     `SELECT * FROM day_log WHERE user_id = ? AND date = ? AND deleted_at IS NULL`,
     NUTZER, datum);
   return zeile ? (ausDatenbank(zeile, DAY_LOG) as unknown as DayLog) : null;
 }
 
-export function upsertDayLog(
+export async function upsertDayLog(
   db: Db, datum: CalendarDate, entwurf: Record<string, unknown>,
-): DayLog {
-  return db.inTransaktion(() => {
+): Promise<DayLog> {
+  return await db.inTransaktion(async () => {
     const zeit = jetzt();
-    const vorhanden = lies(db, DAY_LOG, NUTZER, datum);
-    speichere(db, DAY_LOG, {
+    const vorhanden = await lies(db, DAY_LOG, NUTZER, datum);
+    await speichere(db, DAY_LOG, {
       userId: NUTZER, date: datum,
       mood: entwurf.mood ?? null,
       energy: entwurf.energy ?? null,
@@ -562,53 +562,53 @@ export function upsertDayLog(
       createdAt: vorhanden?.createdAt ?? zeit,
       updatedAt: zeit,
       deletedAt: null,
-    }, db.naechsteSequenz());
-    return dayLog(db, datum)!;
+    }, await db.naechsteSequenz());
+    return (await dayLog(db, datum))!;
   });
 }
 
 // MARK: - Ausnahmen
 
-export function listExceptions(
+export async function listExceptions(
   db: Db, from: CalendarDate, to: CalendarDate,
-): DayException[] {
-  return db.alle(
+): Promise<DayException[]> {
+  return (await db.alle(
     `SELECT * FROM day_exception
      WHERE user_id = ? AND deleted_at IS NULL AND date BETWEEN ? AND ? ORDER BY date`,
     NUTZER, from, to,
-  ).map((z) => ausDatenbank(z, EXCEPTION) as unknown as DayException);
+  )).map((z) => ausDatenbank(z, EXCEPTION) as unknown as DayException);
 }
 
-export function createException(
+export async function createException(
   db: Db, roh: Record<string, unknown>,
-): DayException {
+): Promise<DayException> {
   const datum = requireDate(String(roh.date ?? ""));
   const art = String(roh.kind ?? "");
   if (!["frozen", "paused", "skipped"].includes(art)) {
     throw new Fehler(422, `Unbekannte Ausnahmeart: ${art}`);
   }
-  return db.inTransaktion(() => {
+  return await db.inTransaktion(async () => {
     const habitId = roh.habitId == null ? null : String(roh.habitId);
-    if (habitId) habitOderFehler(db, habitId);
+    if (habitId) await habitOderFehler(db, habitId);
     const zeit = jetzt();
     const id = roh.id ? String(roh.id) : crypto.randomUUID();
-    speichere(db, EXCEPTION, {
+    await speichere(db, EXCEPTION, {
       id, userId: NUTZER, habitId, date: datum, kind: art,
       reason: roh.reason ?? null,
       createdAt: zeit, updatedAt: zeit, deletedAt: null,
-    }, db.naechsteSequenz());
-    return lies(db, EXCEPTION, id) as unknown as DayException;
+    }, await db.naechsteSequenz());
+    return await lies(db, EXCEPTION, id) as unknown as DayException;
   });
 }
 
-export function deleteException(db: Db, id: string): void {
-  db.inTransaktion(() => {
+export async function deleteException(db: Db, id: string): Promise<void> {
+  await db.inTransaktion(async () => {
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE day_exception
        SET deleted_at = ?, updated_at = ?, deleted_with = NULL, server_seq = ?
        WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
-      zeit, zeit, db.naechsteSequenz(), id, NUTZER);
+      zeit, zeit, await db.naechsteSequenz(), id, NUTZER);
   });
 }
 
@@ -626,18 +626,18 @@ export type TrashItem = {
 /// das andere Geräte längst verarbeitet haben.
 const PAPIERKORB_TAGE = 30;
 
-export function trash(db: Db): TrashItem[] {
+export async function trash(db: Db): Promise<TrashItem[]> {
   const grenze = new Date(Date.now() - PAPIERKORB_TAGE * 86_400_000).toISOString();
   const eintraege: TrashItem[] = [];
 
-  for (const z of db.alle(
+  for (const z of await db.alle(
     `SELECT id, name, deleted_at FROM habit
      WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at >= ?`, NUTZER, grenze)) {
     eintraege.push({ table: "habit", rowId: String(z.id),
                      deletedAt: String(z.deleted_at) as Timestamp, label: String(z.name) });
   }
 
-  for (const z of db.alle(
+  for (const z of await db.alle(
     `SELECT id, name, deleted_at FROM tag
      WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at >= ?`, NUTZER, grenze)) {
     eintraege.push({ table: "tag", rowId: String(z.id),
@@ -647,7 +647,7 @@ export function trash(db: Db): TrashItem[] {
   // `deleted_with IS NULL` lässt die Einträge weg, die mit ihrem Habit gefallen
   // sind: sie kommen mit ihm zurück, nicht einzeln. Sonst stünde statt eines
   // gelöschten Habits dessen ganzer Verlauf im Papierkorb.
-  for (const z of db.alle(
+  for (const z of await db.alle(
     `SELECT id, date, deleted_at FROM entry
      WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at >= ? AND deleted_with IS NULL`,
     NUTZER, grenze)) {
@@ -659,15 +659,15 @@ export function trash(db: Db): TrashItem[] {
   return eintraege.sort((a, b) => (a.deletedAt < b.deletedAt ? 1 : -1));
 }
 
-export function restore(db: Db, item: { table: string; rowId: string }): void {
+export async function restore(db: Db, item: { table: string; rowId: string }): Promise<void> {
   const tabellen: Record<string, Tabelle> = { habit: HABIT, tag: TAG, entry: ENTRY };
   const tabelle = tabellen[item.table];
   if (!tabelle) throw new Fehler(422, `Aus ${item.table} lässt sich nichts wiederherstellen`);
 
-  db.inTransaktion(() => {
+  await db.inTransaktion(async () => {
     const zeit = jetzt();
-    const seq = db.naechsteSequenz();
-    db.schreibe(
+    const seq = await db.naechsteSequenz();
+    await db.schreibe(
       `UPDATE "${tabelle.tabelle}" SET deleted_at = NULL, updated_at = ?, server_seq = ?
        WHERE id = ?`,
       zeit, seq, item.rowId);
@@ -675,7 +675,7 @@ export function restore(db: Db, item: { table: string; rowId: string }): void {
     // Nimmt genau die Löschungen zurück, die mit diesem Habit zusammen geschahen.
     if (item.table === "habit") {
       for (const abhaengig of HABIT_TABELLEN) {
-        db.schreibe(
+        await db.schreibe(
           `UPDATE "${abhaengig}"
            SET deleted_at = NULL, updated_at = ?, deleted_with = NULL, server_seq = ?
            WHERE deleted_with = ?`,
@@ -687,13 +687,13 @@ export function restore(db: Db, item: { table: string; rowId: string }): void {
 
 // MARK: - Fokus
 
-export function focusRuns(db: Db): FocusRun[] {
-  return db.alle(
+export async function focusRuns(db: Db): Promise<FocusRun[]> {
+  return (await db.alle(
     `SELECT * FROM focus_run WHERE user_id = ? AND deleted_at IS NULL ORDER BY starts_on DESC`,
     NUTZER,
     // `habit_ids` liegt als JSON-Text in der Spalte; `tables.ts` kennt sie als
     // solche und `ausDatenbank` gibt sie schon als Liste zurück.
-  ).map((z) => ({ habitIds: [], ...ausDatenbank(z, FOCUS) }) as unknown as FocusRun);
+  )).map((z) => ({ habitIds: [], ...ausDatenbank(z, FOCUS) }) as unknown as FocusRun);
 }
 
 /// Alle Läufe ausgewertet, der jüngste zuerst.
@@ -701,31 +701,31 @@ export function focusRuns(db: Db): FocusRun[] {
 /// Die Einträge werden **einmal** über das umspannende Fenster aller Läufe
 /// geladen, nicht je Lauf: bei zwanzig Läufen wären das sonst zwanzig Abfragen
 /// für weitgehend dieselben Zeilen.
-export function focusProgress(db: Db, today = heute()) {
-  const runs = focusRuns(db);
+export async function focusProgress(db: Db, today = heute()) {
+  const runs = await focusRuns(db);
   if (runs.length === 0) return [];
 
   const from = runs.reduce((f, r) => (r.startsOn < f ? r.startsOn : f), runs[0]!.startsOn);
   const to = runs.reduce((t, r) => (r.endsOn > t ? r.endsOn : t), runs[0]!.endsOn);
 
-  const habits = listHabits(db, { includeArchived: true });
-  const entries = listEntries(db, from, to);
-  const exceptions = listExceptions(db, from, to);
+  const habits = await listHabits(db, { includeArchived: true });
+  const entries = await listEntries(db, from, to);
+  const exceptions = await listExceptions(db, from, to);
 
   return runs.map((run) => evaluate(run, habits, entries, exceptions, today));
 }
 
-export function startFocus(
+export async function startFocus(
   db: Db, tage: number, habitIds: string[] = [], titel?: string | null, today = heute(),
-): FocusRun {
+): Promise<FocusRun> {
   if (!Number.isInteger(tage) || tage < 1) {
     throw new Fehler(422, "Ein Fokus dauert mindestens einen Tag");
   }
-  return db.inTransaktion(() => {
+  return await db.inTransaktion(async () => {
     // Einen noch heilen Lauf darf ein neuer nicht still verdrängen. Einen
     // bereits gerissenen schon — sofort neu anfangen zu dürfen ist der Sinn
     // eines Fokus, nicht bis zum Fensterende warten zu müssen.
-    const offen = focusProgress(db, today).find((p) => isOpen(p.outcome));
+    const offen = (await focusProgress(db, today)).find((p) => isOpen(p.outcome));
     if (offen) {
       throw new Fehler(409,
         `Es läuft bereits ein Fokus bis ${offen.run.endsOn}`);
@@ -733,47 +733,47 @@ export function startFocus(
 
     const zeit = jetzt();
     const id = crypto.randomUUID();
-    speichere(db, FOCUS, {
+    await speichere(db, FOCUS, {
       id, userId: NUTZER, title: titel ?? null,
       startsOn: today, endsOn: addDays(today, tage - 1),
       habitIds, abandonedOn: null,
       createdAt: zeit, updatedAt: zeit, deletedAt: null,
-    }, db.naechsteSequenz());
-    return focusRuns(db).find((r) => r.id === id)!;
+    }, await db.naechsteSequenz());
+    return (await focusRuns(db)).find((r) => r.id === id)!;
   });
 }
 
-export function abandonFocus(db: Db, id: string, today = heute()): FocusRun {
-  return db.inTransaktion(() => {
+export async function abandonFocus(db: Db, id: string, today = heute()): Promise<FocusRun> {
+  return await db.inTransaktion(async () => {
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE focus_run SET abandoned_on = ?, updated_at = ?, server_seq = ?
        WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND abandoned_on IS NULL`,
-      today, zeit, db.naechsteSequenz(), id, NUTZER);
-    const lauf = focusRuns(db).find((r) => r.id === id);
+      today, zeit, await db.naechsteSequenz(), id, NUTZER);
+    const lauf = (await focusRuns(db)).find((r) => r.id === id);
     if (!lauf) throw nichtGefunden(`Fokus ${id}`);
     return lauf;
   });
 }
 
-export function deleteFocus(db: Db, id: string): void {
-  db.inTransaktion(() => {
-    const vorhanden = lies(db, FOCUS, id);
+export async function deleteFocus(db: Db, id: string): Promise<void> {
+  await db.inTransaktion(async () => {
+    const vorhanden = await lies(db, FOCUS, id);
     if (!vorhanden || vorhanden.deletedAt) throw nichtGefunden(`Fokus ${id}`);
     const zeit = jetzt();
-    db.schreibe(
+    await db.schreibe(
       `UPDATE focus_run SET deleted_at = ?, updated_at = ?, server_seq = ?
        WHERE id = ? AND user_id = ?`,
-      zeit, zeit, db.naechsteSequenz(), id, NUTZER);
+      zeit, zeit, await db.naechsteSequenz(), id, NUTZER);
   });
 }
 
 // MARK: - Freeze-Konto
 
-export function freezeLedger(db: Db): FreezeEntry[] {
-  return db.alle(
+export async function freezeLedger(db: Db): Promise<FreezeEntry[]> {
+  return (await db.alle(
     `SELECT * FROM freeze_ledger WHERE user_id = ? ORDER BY created_at DESC`, NUTZER,
-  ).map((z) => ausDatenbank(z, FREEZE) as unknown as FreezeEntry);
+  )).map((z) => ausDatenbank(z, FREEZE) as unknown as FreezeEntry);
 }
 
 /// Bucht ein, was durchgezogene Läufe verdient haben.
@@ -781,17 +781,17 @@ export function freezeLedger(db: Db): FreezeEntry[] {
 /// Idempotent über `focusRunId`: derselbe Lauf zahlt genau einmal ein, egal wie
 /// oft dies aufgerufen wird. Deshalb darf es beim Lesen des Kontos mitlaufen —
 /// der Stand hinkt sonst hinterher, bis jemand zufällig den Fokus-Tab öffnet.
-export function awardPendingFreezes(db: Db, today = heute()): number {
+export async function awardPendingFreezes(db: Db, today = heute()): Promise<number> {
   const faellig = pendingFreezeAwards(
-    focusProgress(db, today).map((p) => ({ run: p.run, outcome: p.outcome })),
-    freezeLedger(db));
+    (await focusProgress(db, today)).map((p) => ({ run: p.run, outcome: p.outcome })),
+    await freezeLedger(db));
   if (faellig.length === 0) return 0;
 
-  db.inTransaktion(() => {
+  await db.inTransaktion(async () => {
     const zeit = jetzt();
-    const seq = db.naechsteSequenz();
+    const seq = await db.naechsteSequenz();
     for (const run of faellig) {
-      speichere(db, FREEZE, {
+      await speichere(db, FREEZE, {
         id: crypto.randomUUID(), userId: NUTZER,
         amount: FREEZE_PER_COMPLETED_FOCUS, reason: "focusCompleted",
         habitId: null, date: null, focusRunId: run.id, createdAt: zeit,
@@ -801,9 +801,9 @@ export function awardPendingFreezes(db: Db, today = heute()): number {
   return faellig.length;
 }
 
-export function freezeKonto(db: Db, today = heute()) {
-  awardPendingFreezes(db, today);
-  const ledger = freezeLedger(db);
+export async function freezeKonto(db: Db, today = heute()) {
+  await awardPendingFreezes(db, today);
+  const ledger = await freezeLedger(db);
   return { balance: freezeBalance(ledger), maximum: FREEZE_MAXIMUM, ledger };
 }
 
@@ -812,40 +812,40 @@ export function freezeKonto(db: Db, today = heute()) {
 /// Zwei Buchungen in einem Zug: die Ausnahme, die den Streak hält, und der
 /// Abzug vom Konto. Getrennt könnten sie auseinanderlaufen — ein geretteter Tag
 /// ohne Abzug wäre ein Freeze umsonst.
-export function applyFreeze(
+export async function applyFreeze(
   db: Db, habitId: string, datum: CalendarDate, today = heute(),
-): DayException {
-  const gefunden = habitOderFehler(db, habitId);
+): Promise<DayException> {
+  const gefunden = await habitOderFehler(db, habitId);
 
-  awardPendingFreezes(db, today);
-  if (freezeBalance(freezeLedger(db)) <= 0) {
+  await awardPendingFreezes(db, today);
+  if (freezeBalance(await freezeLedger(db)) <= 0) {
     throw new Fehler(409, "Kein Guthaben");
   }
 
   // Nur ein wirklich verpasster Tag. Ein erfüllter braucht keine Rettung, und
   // der laufende ist noch nicht verloren.
   const auswertung = stats(
-    gefunden, listEntries(db, datum, datum, habitId),
-    listExceptions(db, datum, datum), datum, datum, today);
+    gefunden, await listEntries(db, datum, datum, habitId),
+    await listExceptions(db, datum, datum), datum, datum, today);
   const status = auswertung.days[datum] ?? { code: "notScheduled" as const };
   if (!canFreeze(status, datum, today)) {
     throw new Fehler(422, `Der ${datum} lässt sich nicht einfrieren (${status.code})`);
   }
   pruefeNachtrage(datum, today);
 
-  return db.inTransaktion(() => {
+  return await db.inTransaktion(async () => {
     const zeit = jetzt();
-    const seq = db.naechsteSequenz();
+    const seq = await db.naechsteSequenz();
     const id = crypto.randomUUID();
-    speichere(db, EXCEPTION, {
+    await speichere(db, EXCEPTION, {
       id, userId: NUTZER, habitId, date: datum, kind: "frozen",
       reason: "Streak Freeze",
       createdAt: zeit, updatedAt: zeit, deletedAt: null,
     }, seq);
-    speichere(db, FREEZE, {
+    await speichere(db, FREEZE, {
       id: crypto.randomUUID(), userId: NUTZER, amount: -1, reason: "applied",
       habitId, date: datum, focusRunId: null, createdAt: zeit,
     }, seq);
-    return lies(db, EXCEPTION, id) as unknown as DayException;
+    return await lies(db, EXCEPTION, id) as unknown as DayException;
   });
 }

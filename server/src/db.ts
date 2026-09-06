@@ -9,50 +9,76 @@ import { fileURLToPath } from "node:url";
 /// Schnittstelle ist winzig — `exec`, `prepare`, `run`, `get`, `all` —, und
 /// wenn sie sich ändert, ist der Austausch gegen `better-sqlite3` ein Eingriff
 /// an einer Stelle statt im ganzen Server.
+///
+/// **Warum jede Methode ein Versprechen zurückgibt, obwohl SQLite synchron
+/// ist.** Weil Postgres es nicht ist. Eine Datenbank am anderen Ende einer
+/// Verbindung kann gar nicht synchron antworten, und diese Schnittstelle ist
+/// die Stelle, an der später getauscht wird. Sie jetzt asynchron zu machen
+/// kostet `await` an den Aufrufstellen — sie später asynchron zu machen würde
+/// dasselbe kosten, nur mitten in einem Umzug, bei dem gleichzeitig der Dialekt
+/// und der Wirt wechseln. Ein Schritt nach dem anderen.
 
 const hier = dirname(fileURLToPath(import.meta.url));
 
 export type Zeile = Record<string, unknown>;
 
 export class Db {
+  // Kein Parameter-Property: `erasableSyntaxOnly` verbietet es, weil Node die
+  // Typen nur entfernt und nichts erzeugt.
   private readonly db: DatabaseSync;
 
-  constructor(pfad = ":memory:") {
-    this.db = new DatabaseSync(pfad);
+  private constructor(db: DatabaseSync) {
+    this.db = db;
+  }
+
+  /// Öffnet eine Datenbank und legt das Schema an, falls es fehlt.
+  ///
+  /// Kein `new Db(...)` mehr: gegen Postgres ist schon das Öffnen eine
+  /// Netzsache, und ein Konstruktor kann nicht warten.
+  static async oeffne(pfad = ":memory:"): Promise<Db> {
+    const roh = new DatabaseSync(pfad);
     // Fremdschlüssel sind in SQLite standardmäßig aus.
-    this.db.exec("PRAGMA foreign_keys = ON");
+    roh.exec("PRAGMA foreign_keys = ON");
     // WAL: Lesen blockiert Schreiben nicht. Bei einer Datei sinnvoll, im
     // Arbeitsspeicher wirkungslos.
-    if (pfad !== ":memory:") this.db.exec("PRAGMA journal_mode = WAL");
-    this.db.exec(readFileSync(join(hier, "schema.sql"), "utf8"));
+    if (pfad !== ":memory:") roh.exec("PRAGMA journal_mode = WAL");
+    roh.exec(readFileSync(join(hier, "schema.sql"), "utf8"));
     // Beim ersten Öffnen einer Datei gewürfelt, danach unveränderlich.
-    this.db.exec(
+    roh.exec(
       `INSERT OR IGNORE INTO server_info (id, instance) VALUES (1, '${crypto.randomUUID()}')`);
+    return new Db(roh);
   }
 
   /// Wer dieser Server ist — siehe `server_info` in `schema.sql`.
-  instanz(): string {
-    return String(this.eine("SELECT instance FROM server_info WHERE id = 1")!.instance);
+  async instanz(): Promise<string> {
+    const zeile = await this.eine("SELECT instance FROM server_info WHERE id = 1");
+    return String(zeile!.instance);
   }
 
-  alle(sql: string, ...werte: unknown[]): Zeile[] {
+  async alle(sql: string, ...werte: unknown[]): Promise<Zeile[]> {
     return this.db.prepare(sql).all(...(werte as never[])) as Zeile[];
   }
 
-  eine(sql: string, ...werte: unknown[]): Zeile | undefined {
+  async eine(sql: string, ...werte: unknown[]): Promise<Zeile | undefined> {
     return this.db.prepare(sql).get(...(werte as never[])) as Zeile | undefined;
   }
 
-  schreibe(sql: string, ...werte: unknown[]): void {
+  async schreibe(sql: string, ...werte: unknown[]): Promise<void> {
     this.db.prepare(sql).run(...(werte as never[]));
   }
 
   /// Alles oder nichts. Ein halb angewandtes Delta wäre schlimmer als ein
   /// abgelehntes: der Client hielte seinen Cursor für weiter, als er ist.
-  inTransaktion<T>(arbeit: () => T): T {
+  ///
+  /// Innerhalb des Blocks wird weiter dasselbe `db` benutzt — das ist Absicht
+  /// und bleibt auch gegen Postgres tragfähig, solange **eine Anfrage eine
+  /// Verbindung** hat. Ein Pool, aus dem jede Abfrage sich eine beliebige
+  /// Verbindung nimmt, würde die Klammer sprengen, ohne dass der Typprüfer es
+  /// merkt.
+  async inTransaktion<T>(arbeit: () => Promise<T>): Promise<T> {
     this.db.exec("BEGIN");
     try {
-      const ergebnis = arbeit();
+      const ergebnis = await arbeit();
       this.db.exec("COMMIT");
       return ergebnis;
     } catch (fehler) {
@@ -62,17 +88,17 @@ export class Db {
   }
 
   /// Die nächste Nummer der Folge. Innerhalb einer Transaktion aufzurufen.
-  naechsteSequenz(): number {
-    this.db.exec("UPDATE sync_sequence SET value = value + 1 WHERE id = 1");
-    const zeile = this.eine("SELECT value FROM sync_sequence WHERE id = 1");
+  async naechsteSequenz(): Promise<number> {
+    await this.schreibe("UPDATE sync_sequence SET value = value + 1 WHERE id = 1");
+    return this.aktuelleSequenz();
+  }
+
+  async aktuelleSequenz(): Promise<number> {
+    const zeile = await this.eine("SELECT value FROM sync_sequence WHERE id = 1");
     return Number(zeile!.value);
   }
 
-  aktuelleSequenz(): number {
-    return Number(this.eine("SELECT value FROM sync_sequence WHERE id = 1")!.value);
-  }
-
-  schliesse(): void {
+  async schliesse(): Promise<void> {
     this.db.close();
   }
 }

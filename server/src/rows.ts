@@ -55,14 +55,14 @@ export function fuerDatenbank(wert: unknown, spalte: Spalte): unknown {
 /// `seq` kommt von außen, damit mehrere Zeilen einer Handlung dieselbe Nummer
 /// tragen können: eine kaskadierte Löschung ist ein Vorgang, und ein Client
 /// soll sie nie halb sehen.
-export function speichere(
+export async function speichere(
   db: Db, tabelle: Tabelle, objekt: Record<string, unknown>, seq: number,
-): void {
+): Promise<void> {
   const werte = tabelle.spalten.map((s) => fuerDatenbank(objekt[s.feld], s));
   const namen = tabelle.spalten.map((s) => `"${s.spalte}"`);
   const platzhalter = tabelle.spalten.map(() => "?");
 
-  db.schreibe(
+  await db.schreibe(
     `INSERT INTO "${tabelle.tabelle}" (${namen.join(", ")}, server_seq)
      VALUES (${platzhalter.join(", ")}, ?)
      ON CONFLICT (${tabelle.primaer.map((s) => `"${s}"`).join(", ")}) DO UPDATE SET
@@ -72,11 +72,11 @@ export function speichere(
 }
 
 /// Liest eine Zeile über ihren Primärschlüssel — auch eine gelöschte.
-export function lies(
+export async function lies(
   db: Db, tabelle: Tabelle, ...schluessel: unknown[]
-): Record<string, unknown> | null {
+): Promise<Record<string, unknown> | null> {
   const bedingung = tabelle.primaer.map((s) => `"${s}" = ?`).join(" AND ");
-  const zeile = db.eine(`SELECT * FROM "${tabelle.tabelle}" WHERE ${bedingung}`, ...schluessel);
+  const zeile = await db.eine(`SELECT * FROM "${tabelle.tabelle}" WHERE ${bedingung}`, ...schluessel);
   return zeile ? ausDatenbank(zeile, tabelle) : null;
 }
 
@@ -87,12 +87,12 @@ export function lies(
 /// Sie wandern mit ihm statt eigene Zeilen zu bilden — genau wie in der
 /// Sicherungsdatei. Daraus folgt: **jede Änderung an ihnen muss `updated_at`
 /// des Habits anheben**, sonst bliebe sie beim Abgleich unsichtbar.
-export function habitZubehoer(db: Db, habitId: string): {
+export async function habitZubehoer(db: Db, habitId: string): Promise<{
   rules: Record<string, unknown>[]; tagIds: string[];
-} {
-  const regeln = db.alle(
+}> {
+  const regeln = await db.alle(
     `SELECT * FROM habit_rule WHERE habit_id = ? ORDER BY effective_from`, habitId);
-  const tags = db.alle(`SELECT tag_id FROM habit_tag WHERE habit_id = ?`, habitId);
+  const tags = await db.alle(`SELECT tag_id FROM habit_tag WHERE habit_id = ?`, habitId);
   return {
     rules: regeln.map((r) => ({
       effectiveFrom: r.effective_from,
@@ -114,21 +114,21 @@ export function habitZubehoer(db: Db, habitId: string): {
 ///
 /// Dieselbe Entscheidung wie beim Einspielen einer Sicherung: eine teilweise
 /// übernommene Zeitplan-Historie wäre schwerer zu erklären als eine ersetzte.
-export function schreibeHabitZubehoer(
+export async function schreibeHabitZubehoer(
   db: Db, habitId: string, roh: Record<string, unknown>,
-): void {
+): Promise<void> {
   if (Array.isArray(roh.rules)) {
-    db.schreibe(`DELETE FROM habit_rule WHERE habit_id = ?`, habitId);
+    await db.schreibe(`DELETE FROM habit_rule WHERE habit_id = ?`, habitId);
     for (const regel of roh.rules as Record<string, unknown>[]) {
-      setzeRegel(db, habitId, regel);
+      await setzeRegel(db, habitId, regel);
     }
   }
   if (Array.isArray(roh.tagIds)) {
-    db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
+    await db.schreibe(`DELETE FROM habit_tag WHERE habit_id = ?`, habitId);
     for (const tagId of roh.tagIds as string[]) {
       // Ein Tag, den der Server noch nicht kennt, würde am Fremdschlüssel
       // scheitern — hier gibt es keinen, die Zuordnung darf vorauseilen.
-      db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
+      await db.schreibe(`INSERT OR IGNORE INTO habit_tag (habit_id, tag_id) VALUES (?, ?)`,
                   habitId, tagId);
     }
   }
@@ -138,12 +138,12 @@ export function schreibeHabitZubehoer(
 ///
 /// Genau diese Adressierung trennt „ab heute ändern" von „Tippfehler
 /// korrigieren": das eine legt eine Version an, das andere überschreibt eine.
-export function setzeRegel(
+export async function setzeRegel(
   db: Db, habitId: string, regel: Record<string, unknown>,
-): void {
+): Promise<void> {
   const ziel = regel.target as Record<string, unknown> | undefined | null;
   const plan = regel.schedule as Record<string, unknown>;
-  db.schreibe(
+  await db.schreibe(
     `INSERT INTO habit_rule
        (habit_id, effective_from, schedule_kind, schedule_payload,
         target_value, target_unit, target_comparison)

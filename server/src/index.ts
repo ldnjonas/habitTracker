@@ -43,8 +43,8 @@ export function baueServer(db: Db, token: string) {
   // eine Zufallszahl und verrät nichts.
   app.get("/health", async () => ({
     ok: true,
-    seq: db.aktuelleSequenz(),
-    instance: db.instanz(),
+    seq: await db.aktuelleSequenz(),
+    instance: await db.instanz(),
   }));
 
   app.register(async (geschuetzt) => {
@@ -57,7 +57,7 @@ export function baueServer(db: Db, token: string) {
       if (!Number.isFinite(since) || since < 0) {
         throw new Fehler(400, "since muss eine Zahl ≥ 0 sein");
       }
-      return leseDelta(db, since, limit);
+      return await leseDelta(db, since, limit);
     });
 
     // Antwortet nur mit dem Bericht, nicht mit einem Delta.
@@ -68,7 +68,7 @@ export function baueServer(db: Db, token: string) {
     // zusätzlich mitzuschicken wäre eine zweite Fassung derselben Wahrheit.
     geschuetzt.post("/sync", async (anfrage) => {
       const delta = anfrage.body as Delta;
-      return schreibeDelta(db, delta ?? {});
+      return await schreibeDelta(db, delta ?? {});
     });
 
     // Die Ressourcen für die WebApp. Sie schreiben in dieselben Tabellen wie
@@ -120,10 +120,11 @@ function liefereWebApp(app: FastifyInstance): void {
 // Nur starten, wenn direkt aufgerufen — bei einem Import aus den Tests nicht.
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop()!)) {
   const token = leseToken();
-  const db = new Db(process.env.HABIT_DB ?? "habits.sqlite");
+  const db = await Db.oeffne(process.env.HABIT_DB ?? "habits.sqlite");
   const app = baueServer(db, token);
   const port = Number(process.env.PORT ?? 8080);
+  const sequenz = await db.aktuelleSequenz();
   app.listen({ port, host: "0.0.0.0" })
-    .then(() => app.log.info(`Abgleich-Server auf Port ${port}, Sequenz ${db.aktuelleSequenz()}`))
+    .then(() => app.log.info(`Abgleich-Server auf Port ${port}, Sequenz ${sequenz}`))
     .catch((fehler) => { app.log.error(fehler); process.exit(1); });
 }
