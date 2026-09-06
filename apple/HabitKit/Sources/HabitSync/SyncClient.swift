@@ -6,8 +6,23 @@ import HabitCore
 /// Als Protokoll, damit die Engine ohne Netz prüfbar bleibt — ein Abgleich, den
 /// man nur gegen einen laufenden Server testen kann, wird nicht getestet.
 public protocol SyncTransport: Sendable {
+    func info() async throws -> ServerInfo
     func pull(since: Int64, limit: Int) async throws -> SyncDelta
     func push(_ delta: SyncDelta) async throws -> SyncReport
+}
+
+/// Wer da antwortet und wie weit er ist.
+public struct ServerInfo: Codable, Hashable, Sendable {
+    /// Die Kennung **dieser** Datenbank. Wechselt sie, ist es eine andere.
+    public var instance: String?
+    /// Der höchste vergebene Stand. Steht er niedriger als der eigene Cursor,
+    /// wurde die Datenbank zurückgesetzt — auch das heißt: von vorn.
+    public var seq: Int64?
+
+    public init(instance: String? = nil, seq: Int64? = nil) {
+        self.instance = instance
+        self.seq = seq
+    }
 }
 
 public struct ServerConfig: Hashable, Sendable {
@@ -44,6 +59,15 @@ public struct HTTPSyncTransport: SyncTransport {
     public init(config: ServerConfig, session: URLSession = .shared) {
         self.config = config
         self.session = session
+    }
+
+    /// `/health` — ohne Token erreichbar, aber der Kopf wird trotzdem
+    /// mitgeschickt: die Antwort soll dieselbe Verbindung benutzen wie alles
+    /// andere, und eine falsche Adresse fällt hier zuerst auf.
+    public func info() async throws -> ServerInfo {
+        var anfrage = URLRequest(url: config.baseURL.appending(path: "health"))
+        anfrage.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
+        return try await sende(anfrage, als: ServerInfo.self)
     }
 
     public func pull(since: Int64, limit: Int) async throws -> SyncDelta {

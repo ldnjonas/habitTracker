@@ -24,8 +24,29 @@ private actor FakeServer: SyncTransport {
     var seitengroesse: Int64 = 1000
     private(set) var pushes = 0
     private(set) var pulls = 0
+    /// Wie beim echten Server: die Kennung **dieser** Datenbank.
+    private var kennung = UUID().uuidString
 
     func setSeitengroesse(_ wert: Int64) { seitengroesse = wert }
+
+    func info() async throws -> ServerInfo {
+        ServerInfo(instance: kennung, seq: seq)
+    }
+
+    /// Wirft die Datenbank weg und legt eine neue an — dasselbe, was passiert,
+    /// wenn jemand die Serverdatei löscht oder einen zweiten Server aufsetzt.
+    func fangeNeuAn() {
+        zeilen = []
+        seq = 0
+        kennung = UUID().uuidString
+    }
+
+    /// Dieselbe Datenbank, aber aus einer älteren Kopie: die Kennung bleibt,
+    /// der Stand fällt zurück.
+    func spuleZurueck() {
+        zeilen = []
+        seq = 0
+    }
 
     func push(_ delta: SyncDelta) async throws -> SyncReport {
         pushes += 1
@@ -96,6 +117,51 @@ struct SyncEngineTests {
         #expect(ergebnis.hochgeladen == 2)
         #expect(try await store.pendingChanges().isEmpty, "nichts bleibt offen")
         #expect(try await store.syncState().lastServerSeq > 0)
+    }
+
+    /// Der Fehler, den erst der echte Betrieb gezeigt hat: neun Habits auf dem
+    /// Mac, drei auf dem Server.
+    ///
+    /// Ein Cursor allein ist wertlos, solange nicht feststeht, worauf er sich
+    /// bezieht. Nach einem Abgleich gilt jede Zeile als übertragen; steht dann
+    /// eine andere Datenbank am selben Ort, hat der Client nichts mehr zu
+    /// senden und fragt nach Zeilen jenseits seines Cursors, die es dort nie
+    /// geben wird. Beide Seiten halten sich für fertig.
+    @Test("Eine neue Server-Datenbank bekommt wieder den ganzen Bestand")
+    func rebuildsAgainstAFreshServer() async throws {
+        let store = try makeStore()
+        let server = FakeServer()
+        for name in ["Sport", "Lesen", "Wasser"] {
+            _ = try await store.createHabit(daily(name))
+        }
+
+        let engine = SyncEngine(store: store, transport: server)
+        #expect(try await engine.sync().hochgeladen == 3)
+        #expect(try await store.pendingChanges().isEmpty)
+
+        // Jemand löscht die Serverdatei und startet neu.
+        await server.fangeNeuAn()
+
+        // Ohne Herkunftsprüfung käme hier 0 heraus — und niemand sähe es.
+        let zweiter = try await engine.sync()
+        #expect(zweiter.hochgeladen == 3, "der ganze Bestand geht noch einmal hoch")
+        #expect(try await store.pendingChanges().isEmpty)
+        #expect(try await store.syncState().lastServerSeq > 0)
+    }
+
+    /// Der stillere Fall: dieselbe Datenbank, aber aus einer älteren Kopie
+    /// wiederhergestellt. Die Kennung stimmt, der Stand ist zurückgefallen.
+    @Test("Ein zurückgesetzter Server bekommt den Bestand ebenfalls wieder")
+    func rebuildsAgainstARewoundServer() async throws {
+        let store = try makeStore()
+        let server = FakeServer()
+        _ = try await store.createHabit(daily())
+
+        let engine = SyncEngine(store: store, transport: server)
+        #expect(try await engine.sync().hochgeladen == 1)
+
+        await server.spuleZurueck()
+        #expect(try await engine.sync().hochgeladen == 1)
     }
 
     @Test("Was ein anderes Gerät geschrieben hat, kommt an")
@@ -179,6 +245,9 @@ struct SyncEngineTests {
             init(store: LocalHabitAPI, habitId: UUID) {
                 self.store = store; self.habitId = habitId
             }
+            // Ohne Kennung — wie ein Server aus der Zeit vor der Herkunftsprüfung.
+            // Hier geht es um das Markieren während des Sendens, nicht um sie.
+            func info() async throws -> ServerInfo { ServerInfo(instance: nil, seq: 0) }
             func pull(since: Int64, limit: Int) async throws -> SyncDelta {
                 SyncDelta(nextSeq: since, hasMore: false)
             }
@@ -239,6 +308,7 @@ struct SyncEngineTests {
         _ = try await store.createHabit(daily())
 
         struct Kaputt: SyncTransport {
+            func info() async throws -> ServerInfo { throw SyncError.unauthorized }
             func pull(since: Int64, limit: Int) async throws -> SyncDelta {
                 throw SyncError.unauthorized
             }

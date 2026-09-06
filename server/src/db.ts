@@ -25,6 +25,14 @@ export class Db {
     // Arbeitsspeicher wirkungslos.
     if (pfad !== ":memory:") this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec(readFileSync(join(hier, "schema.sql"), "utf8"));
+    // Beim ersten Öffnen einer Datei gewürfelt, danach unveränderlich.
+    this.db.exec(
+      `INSERT OR IGNORE INTO server_info (id, instance) VALUES (1, '${crypto.randomUUID()}')`);
+  }
+
+  /// Wer dieser Server ist — siehe `server_info` in `schema.sql`.
+  instanz(): string {
+    return String(this.eine("SELECT instance FROM server_info WHERE id = 1")!.instance);
   }
 
   alle(sql: string, ...werte: unknown[]): Zeile[] {

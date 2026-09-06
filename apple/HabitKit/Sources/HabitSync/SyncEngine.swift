@@ -54,6 +54,7 @@ public actor SyncEngine {
         defer { läuft = false }
 
         do {
+            try await pruefeHerkunft()
             let bericht = try await sende()
             let empfangen = try await hole()
             letzterFehler = nil
@@ -66,6 +67,34 @@ public actor SyncEngine {
             letzterFehler = String(describing: error)
             throw error
         }
+    }
+
+    // MARK: - Mit wem rede ich hier
+
+    /// Prüft, ob der Server noch derselbe ist wie beim letzten Abgleich.
+    ///
+    /// Der Cursor allein ist wertlos, solange nicht feststeht, worauf er sich
+    /// bezieht. „Bis Sequenz 695 übertragen" gilt für **eine** Datenbank; steht
+    /// am selben Ort eine andere, hat der Client nichts mehr zu senden — alles
+    /// gilt als bekannt — und fragt nach Zeilen jenseits von 695, die es dort
+    /// nie geben wird. Beide Seiten halten sich für fertig, und der Bestand
+    /// fehlt zur Hälfte. Genau das ist einmal passiert: neun Habits, drei
+    /// angekommen.
+    ///
+    /// Zwei Anlässe für einen Neuanfang, und der zweite ist der stillere:
+    /// eine andere Kennung (neue oder fremde Datenbank) und eine Sequenz, die
+    /// **unter** dem eigenen Cursor liegt (aus einer alten Kopie
+    /// wiederhergestellt).
+    private func pruefeHerkunft() async throws {
+        let auskunft = try await transport.info()
+        guard let kennung = auskunft.instance else { return }   // ältere Serverfassung
+        let stand = try await store.syncState()
+
+        let andere = stand.serverInstance != kennung
+        let zurueckgesetzt = (auskunft.seq ?? 0) < stand.lastServerSeq
+        guard andere || zurueckgesetzt else { return }
+
+        try await store.beginneVonVorn(serverInstance: kennung)
     }
 
     // MARK: - Senden

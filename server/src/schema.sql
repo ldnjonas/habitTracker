@@ -161,3 +161,17 @@ CREATE TABLE IF NOT EXISTS sync_sequence (
   value INTEGER NOT NULL DEFAULT 0
 );
 INSERT OR IGNORE INTO sync_sequence (id, value) VALUES (1, 0);
+
+-- Wer dieser Server ist. Beim ersten Öffnen einer Datenbankdatei gewürfelt und
+-- danach unveränderlich.
+--
+-- Ohne diese Kennung kann ein Client eine **andere** Datenbank nicht von
+-- seiner eigenen unterscheiden. Er merkt sich „bis Sequenz 695 übertragen" und
+-- markiert alle Zeilen als bekannt; steht dann eine frische Datei am selben
+-- Ort, hat er nichts mehr zu senden und fragt nach Zeilen jenseits von 695,
+-- die es nie geben wird. Beide Seiten halten sich für fertig, und neun Habits
+-- werden zu dreien.
+CREATE TABLE IF NOT EXISTS server_info (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  instance TEXT NOT NULL
+);

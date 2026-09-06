@@ -6,6 +6,12 @@ import HabitCore
 public struct SyncState: Hashable, Sendable {
     public var lastServerSeq: Int64
     public var lastSyncedAt: Date?
+    /// Die Kennung der Server-Datenbank, für die `lastServerSeq` gilt.
+    ///
+    /// `nil` heißt: noch nie abgeglichen — oder mit einer Fassung, die diese
+    /// Frage nicht gestellt hat. Beides führt zum vollständigen Neuabgleich,
+    /// und das ist die sichere Richtung.
+    public var serverInstance: String?
 }
 
 extension LocalHabitAPI {
@@ -15,10 +21,37 @@ extension LocalHabitAPI {
     public func syncState() async throws -> SyncState {
         try await dbQueue.read { db in
             let zeile = try Row.fetchOne(db, sql: """
-                SELECT last_server_seq, last_synced_at FROM sync_state WHERE id = 1
+                SELECT last_server_seq, last_synced_at, server_instance
+                FROM sync_state WHERE id = 1
                 """)
             return SyncState(lastServerSeq: zeile?["last_server_seq"] ?? 0,
-                             lastSyncedAt: zeile?["last_synced_at"])
+                             lastSyncedAt: zeile?["last_synced_at"],
+                             serverInstance: zeile?["server_instance"])
+        }
+    }
+
+    /// Setzt den Abgleich auf Anfang — für eine Server-Datenbank, die diesen
+    /// Client noch nicht kennt.
+    ///
+    /// Zwei Dinge zugleich, und beide sind nötig: der Cursor geht auf null,
+    /// damit wieder alles geholt wird, und **jede Zeile wird als offen
+    /// markiert**, damit wieder alles gesendet wird. Nur das eine zu tun hieße,
+    /// die Hälfte des Bestands stillschweigend zurückzulassen — genau der
+    /// Fehler, den diese Funktion behebt.
+    ///
+    /// `habit_rule` und `habit_tag` stehen nicht in der Liste: sie wandern mit
+    /// ihrem Habit und tragen keine eigene Sequenznummer.
+    public func beginneVonVorn(serverInstance: String) async throws {
+        try await dbQueue.write { db in
+            for tabelle in ["habit", "tag", "entry", "entry_event",
+                            "day_exception", "day_log", "focus_run", "freeze_ledger"] {
+                try db.execute(sql: "UPDATE \"\(tabelle)\" SET dirty = 1")
+            }
+            try db.execute(sql: """
+                UPDATE sync_state
+                SET last_server_seq = 0, server_instance = ?
+                WHERE id = 1
+                """, arguments: [serverInstance])
         }
     }
 

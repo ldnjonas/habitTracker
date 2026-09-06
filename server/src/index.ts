@@ -35,7 +35,17 @@ export function baueServer(db: Db, token: string) {
   });
 
   // Ohne Schutz erreichbar: sonst müsste eine Überwachung das Token kennen.
-  app.get("/health", async () => ({ ok: true, seq: db.aktuelleSequenz() }));
+  //
+  // `instance` sagt, **welche** Datenbank hier antwortet. Ein Client vergleicht
+  // sie mit der, gegen die er zuletzt abgeglichen hat: stimmt sie nicht oder
+  // steht die Sequenz niedriger als sein Cursor, redet er mit einer anderen
+  // oder zurückgesetzten Datenbank und muss von vorn anfangen. Die Kennung ist
+  // eine Zufallszahl und verrät nichts.
+  app.get("/health", async () => ({
+    ok: true,
+    seq: db.aktuelleSequenz(),
+    instance: db.instanz(),
+  }));
 
   app.register(async (geschuetzt) => {
     geschuetzt.addHook("onRequest", pruefeToken(token));

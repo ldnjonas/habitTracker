@@ -99,6 +99,19 @@ Löschung richtig — dort ist niemandem mehr etwas mitzuteilen. Hier schon: ein
 Gerät mit altem Cursor erführe von einer harten Löschung nie und schöbe die
 Zeilen beim nächsten Hochladen zurück.
 
+**Jede Datenbank sagt, wer sie ist.** `server_info.instance` wird beim ersten
+Öffnen einer Datei gewürfelt und ändert sich nie; `/health` gibt sie heraus. Ein
+Client merkt sie sich neben seinem Cursor und vergleicht sie vor jedem Abgleich.
+
+Ohne das ist ein Cursor wertlos: „bis Sequenz 695 übertragen" gilt für **eine**
+Datenbank. Steht am selben Ort eine andere — neu angelegt, aus einer alten Kopie
+wiederhergestellt, ein zweiter Server —, dann hat der Client nichts mehr zu
+senden (alles gilt als bekannt) und fragt nach Zeilen jenseits von 695, die es
+dort nie geben wird. Beide Seiten halten sich für fertig, und der Bestand fehlt
+zur Hälfte. Genau so ist es passiert: neun Habits auf dem Mac, drei auf dem
+Server. Stimmt die Kennung nicht oder steht die Sequenz unter dem Cursor,
+beginnt der Client von vorn — Cursor auf null, alle Zeilen wieder offen.
+
 **Grabsteine werden mitgeliefert.** Ohne sie käme eine Löschung nie beim anderen
 Gerät an; dort stünde der Eintrag weiter, und niemand wüsste, warum.
 

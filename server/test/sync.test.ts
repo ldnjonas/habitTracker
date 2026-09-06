@@ -238,4 +238,26 @@ describe("Über HTTP", () => {
     await app.close();
     db.schliesse();
   });
+
+  /// Ein Cursor ist wertlos, solange nicht feststeht, worauf er sich bezieht.
+  /// Ohne diese Kennung kann ein Client eine **andere** Datenbank nicht von
+  /// seiner eigenen unterscheiden — dann hat er nichts mehr zu senden und
+  /// fragt nach Zeilen jenseits seines Cursors, die es dort nie geben wird.
+  test("Jede Datenbank sagt, wer sie ist", async () => {
+    const eine = new Db();
+    const andere = new Db();
+    const a = eine.instanz();
+    const b = andere.instanz();
+
+    assert.match(a, /^[0-9a-f-]{36}$/, "eine Kennung, keine leere Zeichenkette");
+    assert.notEqual(a, b, "zwei Datenbanken sind nicht dieselbe");
+    // Und sie bleibt, was sie ist — sonst hielte jeder Abgleich sie für neu.
+    assert.equal(eine.instanz(), a);
+
+    const app = baueServer(eine, TOKEN);
+    assert.equal((await app.inject({ method: "GET", url: "/health" })).json().instance, a);
+    await app.close();
+    eine.schliesse();
+    andere.schliesse();
+  });
 });

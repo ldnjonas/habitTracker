@@ -259,6 +259,21 @@ enum Schema {
             }
         }
 
+        // Gegen welche Server-Datenbank der Cursor gilt.
+        //
+        // Ein Cursor allein ist wertlos, solange nicht feststeht, worauf er
+        // sich bezieht: „bis Sequenz 695 übertragen" gilt für *eine* Datenbank.
+        // Steht am selben Ort eine andere — neu angelegt, aus einer alten Kopie
+        // wiederhergestellt, ein zweiter Server —, dann hat der Client nichts
+        // mehr zu senden (alles gilt als bekannt) und fragt nach Zeilen jenseits
+        // von 695, die es dort nie geben wird. Beide Seiten halten sich für
+        // fertig, und der Bestand fehlt zur Hälfte.
+        migrator.registerMigration("v6-server-instance") { db in
+            try db.alter(table: "sync_state") { t in
+                t.add(column: "server_instance", .text)
+            }
+        }
+
         return migrator
     }
 }
