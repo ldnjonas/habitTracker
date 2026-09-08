@@ -107,6 +107,15 @@ struct HabitTrackerApp: App {
                     for: NSApplication.didBecomeActiveNotification)) { _ in
                     Task { await Self.holeNach(state) }
                 }
+                // Und beim Weggehen das Gegenstück: wer abhakt und zu einem
+                // anderen Programm wechselt, hat sonst nichts gesendet. Der Mac
+                // läuft zwar weiter, aber niemand käme auf die Idee, dafür
+                // zurückzuwechseln. `sendeOffenes` fragt vorher lokal, ob es
+                // etwas zu senden gibt.
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.didResignActiveNotification)) { _ in
+                    Task { await state.sendeOffenes() }
+                }
                 .alert("Datenbank konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {
                     Button("OK") { startupError = nil }

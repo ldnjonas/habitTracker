@@ -142,6 +142,25 @@ public final class AppState {
     ///
     /// Der Mindestabstand ist der ganze Unterschied: ohne ihn löste jeder
     /// Wechsel zwischen zwei Fenstern eine Runde übers Netz aus.
+    /// Schickt weg, was noch offen ist — ohne Mindestabstand.
+    ///
+    /// Für den Moment, in dem die App aus der Hand gelegt wird. Wer abhakt und
+    /// das Telefon einsteckt, soll den Haken nicht bis zum nächsten Öffnen
+    /// behalten; bis dahin stand er nur auf diesem Gerät.
+    ///
+    /// **Ohne Drosselung, aber nicht ohne Anlass.** Der Auslöser ist hier kein
+    /// Zeitablauf, sondern eine Änderung — deshalb wird erst lokal gefragt, ob
+    /// es überhaupt etwas zu senden gibt. Ein Wechsel zwischen zwei Apps ohne
+    /// Änderung geht damit nicht ins Netz.
+    @discardableResult
+    public func sendeOffenes() async -> Bool {
+        guard abgleichEingerichtet, !syncLäuft else { return false }
+        guard let lokal, (try? await lokal.hatOffeneAenderungen()) == true else { return false }
+        letzterVersuch = Date()
+        await syncNow()
+        return true
+    }
+
     @discardableResult
     public func syncWennFaellig(mindestabstand: TimeInterval = 300) async -> Bool {
         guard abgleichEingerichtet, !syncLäuft else { return false }

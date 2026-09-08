@@ -43,8 +43,7 @@ extension LocalHabitAPI {
     /// ihrem Habit und tragen keine eigene Sequenznummer.
     public func beginneVonVorn(serverInstance: String) async throws {
         try await dbQueue.write { db in
-            for tabelle in ["habit", "tag", "entry", "entry_event",
-                            "day_exception", "day_log", "focus_run", "freeze_ledger"] {
+            for tabelle in LocalHabitAPI.abgleichbareTabellen {
                 try db.execute(sql: "UPDATE \"\(tabelle)\" SET dirty = 1")
             }
             try db.execute(sql: """
@@ -56,6 +55,30 @@ extension LocalHabitAPI {
     }
 
     // MARK: - Einsammeln
+
+    /// Die Tabellen, die eine eigene Sequenznummer tragen und deshalb im Delta
+    /// vorkommen. Regeln und Tag-Zuordnungen fehlen mit Absicht: sie wandern
+    /// mit ihrem Habit.
+    static let abgleichbareTabellen = [
+        "habit", "tag", "entry", "entry_event",
+        "day_exception", "day_log", "focus_run", "freeze_ledger",
+    ]
+
+    /// Ob überhaupt etwas zu senden wäre.
+    ///
+    /// Billiger als `pendingChanges()`, das die Zeilen zusammenbaut. Gedacht
+    /// für den Moment, in dem die App in den Hintergrund geht: dort soll nur
+    /// dann übers Netz gegangen werden, wenn es auch einen Anlass gibt.
+    public func hatOffeneAenderungen() async throws -> Bool {
+        try await dbQueue.read { db in
+            for tabelle in LocalHabitAPI.abgleichbareTabellen {
+                let vorhanden = try Bool.fetchOne(
+                    db, sql: "SELECT EXISTS(SELECT 1 FROM \"\(tabelle)\" WHERE dirty = 1)")
+                if vorhanden == true { return true }
+            }
+            return false
+        }
+    }
 
     /// Alles, was seit dem letzten Abgleich lokal geändert wurde.
     ///

@@ -55,9 +55,24 @@ struct HabitTrackerApp: App {
                 // Auslöser bliebe Abgehaktes hier liegen, bis jemand von Hand
                 // abgleicht — und fehlte damit auch in der täglichen Sicherung,
                 // die der Mac aus dem Serverstand schreibt.
+                //
+                // **Und beim Weglegen andersherum.** Wer abhakt und das Telefon
+                // einsteckt, hat sonst nichts gesendet: das Häkchen stünde bis
+                // zum nächsten Öffnen nur hier. `sendeOffenes` fragt vorher
+                // lokal, ob es überhaupt etwas zu senden gibt — ein Wechsel
+                // zwischen zwei Apps ohne Änderung geht nicht ins Netz.
+                //
+                // Ohne zusätzliche Hintergrundzeit: iOS lässt laufende Arbeit
+                // noch einige Sekunden zu Ende gehen, und ein Abgleich über
+                // zwei Zeilen ist in Millisekunden durch. Reicht es einmal
+                // nicht, bleibt die Zeile offen und geht beim nächsten Öffnen
+                // hoch — dasselbe Verhalten wie vorher, nur seltener.
                 .onChange(of: scenePhase) { _, neu in
-                    guard neu == .active else { return }
-                    Task { await holeNach() }
+                    switch neu {
+                    case .active: Task { await holeNach() }
+                    case .background: Task { await state.sendeOffenes() }
+                    default: break
+                    }
                 }
                 .alert("Datenbank konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {
