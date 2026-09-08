@@ -32,7 +32,14 @@ const ziel = zielPfad.startsWith("postgres")
   ? Db.oeffne(zielPfad)
   : await oeffneEingebettet(zielPfad);
 
-console.log(`aus ${quellePfad} nach ${zielPfad}`);
+/// Eine Verbindungszeichenfolge trägt ein Passwort. Was ein Werkzeug ausgibt,
+/// landet in Protokollen, im Verlauf einer Sitzung und in Bildschirmfotos —
+/// also nicht das Passwort.
+function ohnePasswort(ziel: string): string {
+  return ziel.replace(/:\/\/([^:@/]+):[^@]*@/, "://$1:***@");
+}
+
+console.log(`aus ${quellePfad} nach ${ohnePasswort(zielPfad)}`);
 
 // Die Kennung zuerst: sie entscheidet, ob die Clients den Umzug bemerken.
 const kennung = quelle.prepare("SELECT instance FROM server_info WHERE id = 1").get() as

@@ -40,3 +40,8 @@ apple/HabitTrackerIOS/Info.plist
 
 # Das eingebettete Postgres im lokalen Betrieb
 server/pgdaten/
+
+# Die Verbindung zur Datenbank — gehört niemandem sonst
+server/.env.local
+supabase/.temp/
+server/.token.local

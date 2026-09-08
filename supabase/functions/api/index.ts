@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { Db } from "../../../server/src/db.ts";
 import { baueApp } from "../../../server/src/app.ts";
 import { leseToken } from "../../../server/src/auth.ts";
@@ -19,6 +20,16 @@ const token = leseToken();
 const herkuenfte = (umgebung("HABIT_ORIGINS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
+/// **Supabase reicht den Pfad mit Vorsatz durch**, und welcher es ist, hängt
+/// vom Weg ab: über die öffentliche Adresse kommt `/functions/v1/api/health`
+/// an, im lokalen Betrieb `/api/health`. Ohne passenden Vorsatz greift keine
+/// Route — und die einzige Zeile, die dann noch zieht, ist der Zugangsschutz.
+/// Erst antwortete deshalb selbst `/health` mit 401, danach mit 404.
+///
+/// Statt zu raten wird die App unter allen dreien eingehängt. Sie ist dieselbe;
+/// es kostet nichts außer drei Einträgen in der Wegetabelle.
+const VORSAETZE = ["/functions/v1/api", "/api", "/"];
+
 Deno.serve(async (anfrage: Request) => {
   // **Eine Verbindung je Anfrage.** Eine über die Lebenszeit der Funktion wäre
   // billiger, aber `BEGIN` und `COMMIT` gälten dann für alles, was gerade
@@ -30,7 +41,10 @@ Deno.serve(async (anfrage: Request) => {
   // neuer Prozess.
   const db = Db.oeffne(url);
   try {
-    return await baueApp(db, token, herkuenfte).fetch(anfrage);
+    const innen = baueApp(db, token, herkuenfte);
+    const aussen = new Hono();
+    for (const vorsatz of VORSAETZE) aussen.route(vorsatz, innen);
+    return await aussen.fetch(anfrage);
   } finally {
     await db.schliesse();
   }
